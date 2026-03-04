@@ -2290,7 +2290,19 @@
         .eq('user_id', _sbUser.id)
         .maybeSingle();
       if (error) { console.warn('[sb] load:', error.message); return; }
-      if (!data) return;
+      if (!data) {
+        // 云端没有数据，把当前本地数据作为初始值上传
+        const localFunds = funds.map(({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq }) =>
+          ({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq })
+        );
+        const localWatch = watchlist.map(({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate }) =>
+          ({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate })
+        );
+        _sbCache = { funds: localFunds, watchlist: localWatch, pnl_history: pnlHistory };
+        await _sbSave(_sbCache);
+        showToast('本地数据已同步到云端', 'success');
+        return;
+      }
       _sbCache = {
         funds:       data.funds       || [],
         watchlist:   data.watchlist   || [],
