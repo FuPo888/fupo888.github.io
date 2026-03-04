@@ -1673,10 +1673,11 @@
   let _sbClient = null;
   let _sbUser   = null;
   let _sbCache  = {};   // 本地镜像：{ funds, watchlist, pnl_history }
+  let _sbLoaded = false; // 每次页面加载只从云端拉取一次
 
   (function _sbInit() {
     const url = localStorage.getItem('sb_url') || 'https://jonjgepdiybwrvncfokp.supabase.co';
-    const key = localStorage.getItem('sb_key') || 'sb_publishable_akem25HQ0t5crQjnx4qB4g_uPdt7UqD';
+    const key = localStorage.getItem('sb_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbmpnZXBkaXlid3J2bmNmb2twIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTMzNzQsImV4cCI6MjA4ODE4OTM3NH0.wgR5FkOauG4Y0H3mr3DAa0FuM4XlVO8XOh3CLbgwpq0';
     if (url && key && window.supabase) {
       try { _sbClient = window.supabase.createClient(url, key); } catch (_) {}
     }
@@ -2282,14 +2283,15 @@
 
   /* ── 从云端拉取并覆盖本地 ── */
   async function _sbLoadCloud() {
-    if (!_sbClient || !_sbUser) return;
+    if (!_sbClient || !_sbUser) { showToast('❌ 未登录或未初始化', 'error'); return; }
     try {
+      showToast('☁ 正在加载云端数据…', 'success');
       const { data, error } = await _sbClient
         .from('user_data')
         .select('funds, watchlist, pnl_history, ai_key')
         .eq('user_id', _sbUser.id)
         .maybeSingle();
-      if (error) { console.warn('[sb] load:', error.message); return; }
+      if (error) { showToast('❌ 查询错误: ' + error.message, 'error'); return; }
       if (!data) {
         // 云端没有数据，把当前本地数据作为初始值上传
         const localFunds = funds.map(({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq }) =>
@@ -2300,7 +2302,7 @@
         );
         _sbCache = { funds: localFunds, watchlist: localWatch, pnl_history: pnlHistory };
         await _sbSave(_sbCache);
-        showToast('本地数据已同步到云端', 'success');
+        showToast('☁ 本地数据已同步到云端', 'success');
         return;
       }
       _sbCache = {
@@ -2344,8 +2346,8 @@
       render();
       updateSummary();
       if (funds.length > 0 || watchlist.length > 0) refreshAll();
-      showToast('云端数据已加载', 'success');
-    } catch (e) { console.warn('[sb] load exception:', e); }
+      showToast('✅ 云端数据已加载：' + funds.length + '只基金', 'success');
+    } catch (e) { showToast('❌ 异常: ' + e.message, 'error'); }
   }
 
   /* ── 渲染 Header 用户区 ── */
@@ -2383,11 +2385,14 @@
         // 已登录：隐藏登录窗，显示主内容
         document.getElementById('authModal').classList.remove('open');
         document.getElementById('appContent').style.display = '';
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        // 无论什么事件，只要有用户且本次页面还没加载过，就拉云端数据
+        if (!_sbLoaded) {
+          _sbLoaded = true;
           await _sbLoadCloud();
         }
       } else {
         // 未登录：隐藏主内容，显示登录窗
+        _sbLoaded = false;
         document.getElementById('appContent').style.display = 'none';
         document.getElementById('authModal').classList.add('open');
       }
@@ -2417,16 +2422,23 @@
   };
 
   window._sbLogout = function () {
-    // 先立即更新 UI，不等网络请求
+    // 直接清除 localStorage 里的 Supabase session，不发网络请求
+    const projectRef = 'jonjgepdiybwrvncfokp';
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('sb-' + projectRef) || k === 'supabase.auth.token') {
+        localStorage.removeItem(k);
+      }
+    });
     _sbUser = null;
     _sbCache = {};
+    _sbLoaded = false;
     _renderUserArea(null);
     document.getElementById('appContent').style.display = 'none';
     document.getElementById('authModal').classList.add('open');
     document.getElementById('authEmail').value = '';
     document.getElementById('authPwd').value = '';
     document.getElementById('authErr').textContent = '';
-    // 后台静默退出
+    // 后台通知服务端（不阻塞 UI）
     if (_sbClient) _sbClient.auth.signOut().catch(() => {});
   };
 
