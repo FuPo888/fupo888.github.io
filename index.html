@@ -3656,7 +3656,7 @@
      JS 单线程保证 onload 触发时 Data_netWorthTrend 一定是本只基金数据，无竞态。
      分批避免 112 只同时请求导致队列等待超时。 */
   async function _mrFetchPZDParallel(pool, onBatch) {
-    const BATCH_SIZE = 6;
+    const BATCH_SIZE = 10;
     const todayStr = _mrTodayStr();
     const results = [];
     for (let i = 0; i < pool.length; i += BATCH_SIZE) {
@@ -3773,17 +3773,13 @@
 
     const isTradingDay = !_mrIsNonTradingDay();
     const nowH = new Date().getHours();
-    // 18:00 后（含非交易日）：需取确认净值（fundgz gszzl 不会再更新，需走 PZD）
-    const needConfirmed = !isTradingDay || nowH >= 18;
+    const todayStr = _mrTodayStr();
 
-    // 缓存有效性检查
+    // 缓存有效性：有确认净值缓存且日期是今天 → 不过期；否则 30 分钟过期
     if (_mrCache && _mrCache.length > 0) {
       const cacheAge = Date.now() - _mrCacheTime;
-      // 估值缓存：30 分钟内有效；确认净值缓存：当天有效（不自动过期）
-      const cacheInEstimateMode = _mrCache.every(r => r.confirmed === false);
-      const cacheStale = cacheInEstimateMode
-        ? cacheAge > 30 * 60 * 1000 || needConfirmed   // 盘中缓存过期，或现在需要确认净值
-        : false;                                         // 已是确认净值，不再过期
+      const hasConfirmed = _mrCache.some(r => r.confirmed === true);
+      const cacheStale = hasConfirmed ? false : cacheAge > 30 * 60 * 1000;
       if (!cacheStale) {
         _mrRender(body, foot, _mrCache);
         _mrBusy = false;
@@ -3795,48 +3791,69 @@
     const codes = pool.map(p => p.code);
     const codeToSector = Object.fromEntries(pool.map(p => [p.code, p.sector]));
 
-    if (!needConfirmed) {
-      // 盘中：fundgz 并发拉取，失败的基金自动 PZD 补充
-      body.innerHTML = '<div class="mr-empty"><span class="spinner"></span>&nbsp;加载中…</div>';
-      try {
-        const raw = await _mrFetchGzBatch(codes, true, (done, total) => {
-          body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;加载中… ${done}/${total}</div>`;
+    // 阶段 1：fundgz 快速拉取（任何时间都先走这步）
+    body.innerHTML = '<div class="mr-empty"><span class="spinner"></span>&nbsp;加载中…</div>';
+    let results = [];
+    try {
+      const raw = await _mrFetchGzBatch(codes, isTradingDay, (done, total) => {
+        body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;加载中… ${done}/${total}</div>`;
+      });
+
+      const failedCodes = codes.filter(c => !raw[c]);
+      if (failedCodes.length > 0) {
+        const fallbackPool = failedCodes.map(c => ({ code: c, sector: codeToSector[c] || '' }));
+        body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;补充加载 ${failedCodes.length} 只…</div>`;
+        const fallbackResults = await _mrFetchPZDParallel(fallbackPool, (done, total) => {
+          body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;补充加载 ${done}/${total}</div>`;
         });
-
-        // 找出 fundgz 未返回数据的基金，用 PZD 补充
-        const failedCodes = codes.filter(c => !raw[c]);
-        if (failedCodes.length > 0) {
-          const fallbackPool = failedCodes.map(c => ({ code: c, sector: codeToSector[c] || '' }));
-          body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;补充加载 ${failedCodes.length} 只…</div>`;
-          const fallbackResults = await _mrFetchPZDParallel(fallbackPool, (done, total) => {
-            body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;补充加载 ${done}/${total}</div>`;
-          });
-          fallbackResults.forEach(r => { raw[r.code] = r; });
-        }
-
-        const results = Object.values(raw).map(r => ({ ...r, sector: codeToSector[r.code] || r.sector || '' })).sort((a, b) => b.ret - a.ret);
-        _mrCache = results;
-        _mrCacheTime = Date.now();
-        _mrRender(body, foot, results);
-      } catch (e) {
-        body.innerHTML = `<div class="mr-empty">加载失败：${e.message}</div>`;
+        fallbackResults.forEach(r => { raw[r.code] = r; });
       }
-    } else {
-      // 18:00 后 / 非交易日：分批并行 PZD，取确认净值 + 准确涨幅
-      body.innerHTML = '<div class="mr-empty"><span class="spinner"></span>&nbsp;加载中…（取确认净值）</div>';
+
+      results = Object.values(raw).map(r => ({ ...r, sector: codeToSector[r.code] || r.sector || '' })).sort((a, b) => b.ret - a.ret);
+      _mrCache = results;
+      _mrCacheTime = Date.now();
+      _mrRender(body, foot, results);
+    } catch (e) {
+      body.innerHTML = `<div class="mr-empty">加载失败：${e.message}</div>`;
+      _mrBusy = false;
+      _mrUpdateRefreshTime();
+      return;
+    }
+
+    // 阶段 2：15:00 后 / 非交易日 → PZD 拉确认净值，有今天数据的替换估值
+    const needPZD = !isTradingDay || nowH >= 15;
+    if (needPZD && results.length > 0) {
       try {
-        const results = await _mrFetchPZDParallel(pool, (done, total) => {
-          body.innerHTML = `<div class="mr-empty"><span class="spinner"></span>&nbsp;${done}/${total}…</div>`;
+        foot.textContent = '正在获取确认净值…';
+        const pzdResults = await _mrFetchPZDParallel(pool, (done, total) => {
+          foot.textContent = `确认净值 ${done}/${total}…`;
         });
-        if (!results.length) {
-          body.innerHTML = '<div class="mr-empty">暂无有效数据，请稍后刷新重试</div>';
-        } else {
+        // 找出 PZD 中日期 >= fundgz 日期的（更新或同日确认），替换
+        const cMap = {};
+        pzdResults.forEach(r => {
+          const existing = results.find(x => x.code === r.code);
+          if (r.jzrq === todayStr || (existing && r.jzrq >= existing.jzrq)) {
+            cMap[r.code] = r;
+          }
+        });
+        const cCount = Object.keys(cMap).length;
+        if (cCount > 0) {
+          results = results.map(r => {
+            const c = cMap[r.code];
+            return c ? { ...c, sector: r.sector || c.sector, confirmed: c.jzrq === todayStr ? true : null } : r;
+          }).sort((a, b) => b.ret - a.ret);
           _mrCache = results;
           _mrCacheTime = Date.now();
           _mrRender(body, foot, results);
+          const confirmedCount = pzdResults.filter(r => r.jzrq === todayStr).length;
+          foot.textContent = confirmedCount > 0
+            ? `已更新 ${confirmedCount} 只确认净值`
+            : '确认净值暂未公布';
+        } else {
+          foot.textContent = '确认净值暂未公布';
         }
-      } catch (e) {
-        body.innerHTML = `<div class="mr-empty">加载失败：${e.message}</div>`;
+      } catch (_) {
+        foot.textContent = '';
       }
     }
     _mrBusy = false;
