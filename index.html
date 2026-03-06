@@ -2376,24 +2376,19 @@
         showToast('❌ 查询错误: ' + error.message, 'error'); return;
       }
       if (!data) {
-        // 云端没有数据行
-        if (funds.length > 0 || watchlist.length > 0) {
-          // 本地有数据，后台上传（不阻塞）
-          const localFunds = funds.map(({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq }) =>
-            ({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq })
-          );
-          const localWatch = watchlist.map(({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate }) =>
-            ({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate })
-          );
-          _sbCache = { funds: localFunds, watchlist: localWatch, pnl_history: pnlHistory };
-          _sbSyncing = false; // 先解锁再保存
-          _sbSave(_sbCache);
-          showToast('☁ 本地数据已同步到云端', 'success');
-        } else {
-          showToast('☁ 云端暂无数据', 'success');
-          _sbSyncing = false;
-        }
+        // 云端没有数据行：清空本地，从空白开始
+        funds = [];
+        watchlist = [];
+        pnlHistory = {};
+        localStorage.setItem('fund_calc_v6', '[]');
+        localStorage.setItem('fund_watchlist_v1', '[]');
+        localStorage.setItem(PNL_KEY, '{}');
+        _sbCache = { funds: [], watchlist: [], pnl_history: {} };
+        render();
+        updateSummary();
         _sbLoaded = true;
+        _sbSyncing = false;
+        showToast('☁ 新账户，从空白开始', 'success');
         return;
       }
       _sbCache = {
