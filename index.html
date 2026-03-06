@@ -446,7 +446,7 @@
       text-align: center;
     }
     .summary-label { font-size: 12px; color: var(--text-primary); margin-bottom: 10px; }
-    .summary-value { font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; }
+    .summary-value { font-size: 24px; font-weight: 700; line-height: 1.2; color: #fff; position: relative; }
     .summary-value.profit { color: var(--profit); }
     .summary-value.loss   { color: var(--loss); }
 
@@ -790,13 +790,24 @@
     }
     .privacy-chk.checked { background: var(--accent); border-color: var(--accent); }
     .privacy-chk.checked::after { content: '✓'; color: #fff; font-size: 10px; }
-    td.masked, .summary-value.masked { user-select: none; }
-    td.masked > *, .summary-value.masked { font-size: 0 !important; }
-    td.masked::after, .summary-value.masked::after {
-      content: '******'; font-size: 13px; color: var(--text-muted);
-      letter-spacing: 1px;
+    td.masked, .summary-value.masked {
+      user-select: none; color: transparent !important;
+      font-size: 0 !important; overflow: hidden; position: relative;
     }
-    .summary-value.masked::after { font-size: 20px; }
+    td.masked *, .summary-value.masked * {
+      color: transparent !important; font-size: 0 !important;
+      border-color: transparent !important; background: transparent !important;
+    }
+    td.masked::after {
+      content: '******'; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; color: var(--text-muted); letter-spacing: 1px;
+    }
+    .summary-value.masked::after {
+      content: '******'; position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; color: var(--text-muted); letter-spacing: 1px;
+    }
 
     /* ══ 基金大盘 ══ */
     .mr-wrap   { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:12px; }
