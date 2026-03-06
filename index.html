@@ -791,22 +791,23 @@
     .privacy-chk.checked { background: var(--accent); border-color: var(--accent); }
     .privacy-chk.checked::after { content: '✓'; color: #fff; font-size: 10px; }
     td.masked, .summary-value.masked {
-      user-select: none; color: transparent !important;
-      font-size: 0 !important; overflow: hidden; position: relative;
+      user-select: none; position: relative; overflow: hidden;
     }
-    td.masked *, .summary-value.masked * {
-      color: transparent !important; font-size: 0 !important;
-      border-color: transparent !important; background: transparent !important;
+    td.masked > *, td.masked .profit, td.masked .loss, td.masked .neutral,
+    .summary-value.masked > * {
+      visibility: hidden !important;
     }
     td.masked::after {
       content: '******'; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       font-size: 13px; color: var(--text-muted); letter-spacing: 1px;
+      visibility: visible;
     }
     .summary-value.masked::after {
       content: '******'; position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
       font-size: 20px; color: var(--text-muted); letter-spacing: 1px;
+      visibility: visible;
     }
 
     /* ══ 基金大盘 ══ */
