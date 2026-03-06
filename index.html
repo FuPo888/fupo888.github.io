@@ -2432,9 +2432,10 @@
       _sbLoaded = true;
       render();
       updateSummary();
-      if (funds.length > 0 || watchlist.length > 0) refreshAll();
       showToast('✅ 云端数据已加载：' + funds.length + '只基金', 'success');
       _sbSyncing = false; // 解锁
+      // 云端数据已有上次估值，只需一次刷新获取最新价格
+      if (funds.length > 0 || watchlist.length > 0) refreshAll();
     } catch (e) {
       if (attempt < 3) { return _sbLoadCloud(attempt + 1); }
       _sbSyncing = false; // 解锁
@@ -2518,16 +2519,26 @@
     Object.keys(localStorage).forEach(k => {
       if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
     });
+    // 清空本地业务数据，防止下个用户看到
+    funds = [];
+    watchlist = [];
+    pnlHistory = {};
+    localStorage.setItem('fund_calc_v6', '[]');
+    localStorage.setItem('fund_watchlist_v1', '[]');
+    localStorage.setItem(PNL_KEY, '{}');
+    render();
+    updateSummary();
+
     _sbUser = null;
     _sbCache = {};
     _sbLoaded = false;
+    _sbSyncing = true; // 锁定，防止空数据回写
     _renderUserArea(null);
     document.getElementById('appContent').style.display = 'none';
     document.getElementById('authModal').classList.add('open');
     document.getElementById('authEmail').value = '';
     document.getElementById('authPwd').value = '';
     document.getElementById('authErr').textContent = '';
-    // 后台通知服务端（不阻塞 UI）
     if (_sbClient) _sbClient.auth.signOut().catch(() => {});
   };
 
