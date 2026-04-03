@@ -1152,6 +1152,40 @@
   }
   .btn-login-header:hover { background: rgba(85,113,245,0.22); }
 
+  /* 操作日记 */
+  .od-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 0; }
+  .od-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .od-table th, .od-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .od-table th { color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
+  .od-table td { color: var(--text-primary); }
+  .od-code { color: var(--text-muted); font-size: 12px; }
+  .od-badge-buy {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; background: rgba(240, 64, 64, 0.15); color: var(--profit);
+  }
+  .od-badge-sell {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; background: rgba(34, 196, 94, 0.15); color: var(--loss);
+  }
+  .od-nav-type { font-size: 12px; color: var(--text-muted); }
+  .od-empty { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 14px; }
+  .od-modal-box {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    width: 440px; max-width: calc(100vw - 32px);
+    padding: 24px 24px 20px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+  .od-modal-box h3 { margin: 0 0 16px; font-size: 17px; color: var(--text-primary); }
+  .od-modal-box .auth-form input[type="date"] {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .od-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
   /* Auth Modal */
   .auth-modal {
     position: fixed; inset: 0;
@@ -1268,7 +1302,6 @@
   <div class="tab-bar">
     <button class="tab-btn active" id="tabBtn1" onclick="_switchTab(1)">我的持仓</button>
     <button class="tab-btn"        id="tabBtn2" onclick="_switchTab(2)">涨跌行情</button>
-    <button class="tab-btn"        id="tabBtn3" onclick="_switchTab(3)">盈亏日历</button>
     <button class="tab-btn"        id="tabBtn4" onclick="_switchTab(4)">基金大盘</button>
     <button class="tab-btn"        id="tabBtn5" onclick="_switchTab(5)">板块行情</button>
   </div>
@@ -1317,6 +1350,10 @@
       <button class="btn btn-add-open" onclick="_openAddModal()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         添加基金
+      </button>
+      <button class="btn btn-add-open" type="button" onclick="_odGoDiary(1)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
+        操作日记
       </button>
       <button class="btn btn-refresh" id="refreshBtn" onclick="refreshAll()">刷新估值</button>
     </div>
@@ -1466,6 +1503,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
           添加监控
         </button>
+        <button class="btn btn-add-open" type="button" onclick="_odGoDiary(2)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
+          操作日记
+        </button>
         <button class="btn btn-refresh" onclick="refreshAll()">刷新行情</button>
       </div>
     </div>
@@ -1498,38 +1539,100 @@
 
   </div><!-- /tab2-content -->
 
-  <!-- Tab 3: 盈亏日历 -->
+  <!-- Tab 3: 操作日记（入口：我的持仓 / 涨跌行情 工具栏右侧，与添加/刷新并列） -->
   <div id="tab3-content" style="display:none">
     <div class="card">
-      <div class="cal-nav">
-        <button class="cal-nav-btn" onclick="_calPrev()">‹</button>
-        <span class="cal-month-label" id="calMonthLabel"></span>
-        <button class="cal-nav-btn" onclick="_calNext()">›</button>
-        <button class="btn btn-refresh" id="calRefreshBtn" onclick="_calRefresh()" style="margin-left:auto;">刷新日历</button>
-        <button class="btn btn-remove" onclick="_calClearHistory()" title="清空所有历史盈亏记录，下次刷新日历时重新计算" style="font-size:12px;">清空记录</button>
+      <div class="actions-bar">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button type="button" id="odBackBtn" class="btn btn-cancel" style="padding:7px 12px;font-size:12px;white-space:nowrap;" onclick="_odBackFromDiary()">← 涨跌行情</button>
+          <span class="section-title" style="margin:0;">操作日记</span>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="_odOpenAdd()">＋ 添加记录</button>
       </div>
-      <table class="cal-table" id="calTable">
+      <div id="odTableWrap" class="od-table-wrap" style="margin-top:16px;">
+        <table class="od-table" id="odTable">
           <thead>
-          <tr>
-            <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th>
-          </tr>
-        </thead>
-        <tbody id="calBody"></tbody>
-      </table>
-      <div class="cal-summary">
-        <span id="calMonthTotal" style="color:var(--text-muted)"></span>
-        <span id="calDayCount" style="color:var(--text-muted);font-size:12px;font-weight:400;"></span>
+            <tr>
+              <th>日期</th>
+              <th>基金</th>
+              <th>标签</th>
+              <th>方向</th>
+              <th style="text-align:right">金额 / 份额</th>
+              <th style="text-align:right">参考净值</th>
+              <th style="text-align:right">卖出回款</th>
+              <th>净值类型</th>
+              <th>持仓同步</th>
+              <th style="width:72px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="odTbody"></tbody>
+        </table>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="day-rank-header">
-        <div class="section-title" style="margin:0" id="dayRankTitle">当日盈亏明细</div>
-        <div class="day-rank-date" id="dayRankDate"></div>
-      </div>
-      <div id="dayRankBody"></div>
+      <div id="odEmpty" class="od-empty" style="display:none;">暂无记录，点击「添加记录」开始</div>
     </div>
   </div><!-- /tab3-content -->
+
+  <!-- 操作日记 · 添加 -->
+  <div class="auth-modal" id="odModal" onclick="if(event.target===this)_odCloseModal()">
+    <div class="od-modal-box" onclick="event.stopPropagation()">
+      <h3>添加操作记录</h3>
+      <div class="auth-form">
+        <div class="form-group">
+          <label>操作日期</label>
+          <input type="date" id="od_m_date" />
+        </div>
+        <div class="form-group">
+          <label>选择持仓（或选手动填写）</label>
+          <select id="od_m_pick" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;padding:10px 12px;">
+            <option value="">— 手动填写代码与名称 —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>基金代码</label>
+          <input type="text" id="od_m_code" placeholder="如 011452" maxlength="10" />
+        </div>
+        <div class="form-group">
+          <label>基金名称</label>
+          <input type="text" id="od_m_name" placeholder="简称或全称" />
+        </div>
+        <div class="form-group">
+          <label>标签</label>
+          <input type="text" id="od_m_tag" placeholder="可选，如 科创、债基" />
+        </div>
+        <div class="form-group">
+          <label>方向</label>
+          <div style="display:flex;gap:20px;margin-top:6px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-primary);">
+              <input type="radio" name="od_m_side" value="buy" checked /> 买入 / 加仓
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-primary);">
+              <input type="radio" name="od_m_side" value="sell" /> 卖出 / 减仓
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label id="od_m_qty_label">金额（元）</label>
+          <input type="number" id="od_m_money" min="0" step="0.01" placeholder="本次买入或加仓金额" />
+        </div>
+        <div class="form-group">
+          <label>当日参考净值 / 估值（单价）</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <input type="number" id="od_m_nav" min="0" step="0.0001" placeholder="自动或手填" style="flex:1;min-width:120px;" />
+            <button type="button" class="btn btn-cancel" style="padding:8px 12px;font-size:12px;white-space:nowrap;" onclick="_odFillNavFromHoldings()">从持仓填入</button>
+          </div>
+          <div id="od_m_navhint" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
+          <div id="od_m_sell_preview" style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.45;"></div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin:14px 0 0;">
+        <strong style="color:var(--text-secondary)">与持仓联动：</strong><strong>参考净值选「估值」</strong>时，只先记在日记里（预估金额/份额），<strong>等该操作日确认净值能从行情拉到之后</strong>再写入「我的持仓」；请<strong>刷新估值</strong>触发同步。若填的是<strong>确认净值</strong>或<strong>手工单价</strong>，保存后会立刻按该价格同步持仓。
+      </p>
+      <div class="od-modal-actions">
+        <button class="btn btn-cancel-modal" type="button" onclick="_odCloseModal()">取消</button>
+        <button class="btn btn-primary" type="button" onclick="_odSubmit()">保存</button>
+      </div>
+    </div>
+  </div>
 
   <!-- 基金大盘 买入建议弹框 -->
   <!-- 通用确认弹框 -->
@@ -1731,17 +1834,20 @@
   /* ── Supabase ── */
   let _sbClient = null;
   let _sbUser   = null;
-  let _sbCache  = {};   // 本地镜像：{ funds, watchlist, pnl_history }
+  let _sbCache  = {};   // 本地镜像：{ funds, watchlist, pnl_history, operation_diary }
   let _sbLoaded = false;
   let _sbSyncing = false; // 云端同步中，禁止回写
 
   const SB_URL = 'https://jonjgepdiybwrvncfokp.supabase.co';
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbmpnZXBkaXlid3J2bmNmb2twIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTMzNzQsImV4cCI6MjA4ODE4OTM3NH0.wgR5FkOauG4Y0H3mr3DAa0FuM4XlVO8XOh3CLbgwpq0';
-  (function _sbInit() {
+  function _sbEnsureClient() {
+    if (_sbClient) return true;
     if (window.supabase) {
       try { _sbClient = window.supabase.createClient(SB_URL, SB_KEY); } catch (_) {}
     }
-  })();
+    return !!_sbClient;
+  }
+  _sbEnsureClient();
 
   /* ── fundgz dispatcher（必须最先初始化，在任何 JSONP 调用之前）──────────
      用 Object.defineProperty 拦截所有对 window.jsonpgz 的赋值：
@@ -1894,6 +2000,16 @@
       };
       document.head.appendChild(script);
     });
+  }
+
+  /** pingzhongdata 折线中对应自然日 opDate(YYYY-MM-DD) 的净值，无则 null */
+  function _pzdNavOnDate(trend, opDate) {
+    if (!trend || !trend.length || !opDate) return null;
+    for (let i = trend.length - 1; i >= 0; i--) {
+      const d = new Date(trend[i].x + 8 * 3600 * 1000).toISOString().slice(0, 10);
+      if (d === opDate) return parseFloat(trend[i].y);
+    }
+    return null;
   }
 
   /* ── Refresh all (portfolio + watchlist) sequentially ── */
@@ -2073,6 +2189,8 @@
       renderRanking();
     }
 
+    await _diaryTryApplyPending();
+
     save();
     saveWatchlist();
     updateSummary();
@@ -2177,10 +2295,7 @@
       if (rec.funds.length === 0) delete pnlHistory[date];
       calChanged = true;
     }
-    if (calChanged) {
-      savePnlHistory();
-      if (document.getElementById('tab3-content').style.display !== 'none') renderCalendar();
-    }
+    if (calChanged) savePnlHistory();
   };
 
 
@@ -2305,6 +2420,18 @@
     } catch (_) { watchlist = []; }
   }
 
+  /** 从哪个 Tab 进入操作日记，用于「返回」 */
+  let _odReturnTab = 2;
+  window._odGoDiary = function (fromTab) {
+    _odReturnTab = (fromTab === 1) ? 1 : 2;
+    const backBtn = document.getElementById('odBackBtn');
+    if (backBtn) backBtn.textContent = _odReturnTab === 1 ? '← 我的持仓' : '← 涨跌行情';
+    _switchTab(3);
+  };
+  window._odBackFromDiary = function () {
+    _switchTab(_odReturnTab);
+  };
+
   /* ── Tab switching ── */
   window._switchTab = function (n) {
     document.getElementById('tab1-content').style.display = n === 1 ? '' : 'none';
@@ -2314,17 +2441,16 @@
     document.getElementById('tab5-content').style.display = n === 5 ? '' : 'none';
     document.getElementById('tabBtn1').className = 'tab-btn' + (n === 1 ? ' active' : '');
     document.getElementById('tabBtn2').className = 'tab-btn' + (n === 2 ? ' active' : '');
-    document.getElementById('tabBtn3').className = 'tab-btn' + (n === 3 ? ' active' : '');
     document.getElementById('tabBtn4').className = 'tab-btn' + (n === 4 ? ' active' : '');
     document.getElementById('tabBtn5').className = 'tab-btn' + (n === 5 ? ' active' : '');
     if (n === 2) renderRanking();
-    if (n === 3) { selectedDay = null; renderCalendar(); }
+    if (n === 3) renderOperationDiary();
     if (n === 4) _mrLoad();
     if (n === 5) _sectorLoad();
   };
 
   /* ══════════════════════════════════════
-     盈亏日历 — 数据层
+     历史盈亏数据（原盈亏日历，UI 已迁至「操作日记」占位；数据层保留）
   ══════════════════════════════════════ */
   const PNL_KEY = 'fund_pnl_history_v1';
   let pnlHistory = {};   // { 'YYYY-MM-DD': { total, funds:[{code,name,profit}] } }
@@ -2338,6 +2464,450 @@
     localStorage.setItem(PNL_KEY, JSON.stringify(pnlHistory));
     _sbSave({ pnl_history: pnlHistory });
   }
+
+  /* ══════════════════════════════════════ 操作日记 ══════════════════════════════════════ */
+  const OD_KEY = 'fund_operation_diary_v1';
+  let operationDiary = [];
+
+  function loadOperationDiary() {
+    operationDiary = [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(OD_KEY) || '[]');
+      operationDiary = Array.isArray(raw) ? raw : [];
+    } catch (_) {}
+    operationDiary.forEach(r => {
+      const legacy = r.holdingsSynced === undefined && r.needsConfirmToSync === undefined;
+      if (legacy) {
+        r.holdingsSynced = true;
+        r.needsConfirmToSync = false;
+      } else {
+        if (r.holdingsSynced === undefined) r.holdingsSynced = false;
+        if (r.needsConfirmToSync === undefined) r.needsConfirmToSync = false;
+      }
+    });
+  }
+
+  function saveOperationDiary() {
+    localStorage.setItem(OD_KEY, JSON.stringify(operationDiary));
+    _sbSave({ operation_diary: operationDiary });
+  }
+
+  /** 将一条操作日记合并到 funds[]；成功则 rec.holdingsSynced = true */
+  function _diaryApplyToHoldings(rec) {
+    if (rec.holdingsSynced) return true;
+    const nav = parseFloat(rec.nav);
+    if (isNaN(nav) || nav <= 0) {
+      showToast('操作记录净值无效，无法同步持仓', 'error');
+      return false;
+    }
+    const code = (rec.code || '').trim();
+    if (!code) return false;
+
+    if (rec.side === 'buy') {
+      const money = parseFloat(rec.money);
+      if (isNaN(money) || money <= 0) {
+        showToast('买入金额无效', 'error');
+        return false;
+      }
+      const addShares = money / nav;
+      const idx = funds.findIndex(f => f.code === code);
+      if (idx < 0) {
+        funds.push({
+          code,
+          amount: parseFloat((addShares * nav).toFixed(2)),
+          tag: rec.tag || null,
+          costBasis: nav,
+          costBasisLocked: true,
+          holdingShares: parseFloat(addShares.toFixed(4)),
+          holdingSharesLocked: true,
+          costNav: nav,
+          prevNav: null,
+          confirmedNav: null,
+          navConfirmed: false,
+          confirmedDate: null,
+          name: rec.name || code,
+          gsz: null, gszzl: null, gztime: null, jzrq: null,
+          loading: false, error: false
+        });
+      } else {
+        const f = funds[idx];
+        const baseNav = f.costNav || f.prevNav || nav;
+        const oldS = (f.holdingShares != null && f.holdingShares > 0)
+          ? f.holdingShares
+          : (f.amount && baseNav ? f.amount / baseNav : 0);
+        if (oldS <= 0) {
+          showToast('无法计算原持仓份额，请先刷新该基金估值后再试', 'error');
+          return false;
+        }
+        const oldCost = (f.costBasisLocked && f.costBasis != null && f.costBasis > 0)
+          ? f.costBasis
+          : (f.costNav || f.prevNav || nav);
+        const newS = oldS + addShares;
+        const newCost = (oldS * oldCost + money) / newS;
+        f.holdingShares = parseFloat(newS.toFixed(4));
+        f.holdingSharesLocked = true;
+        f.costBasis = parseFloat(newCost.toFixed(4));
+        f.costBasisLocked = true;
+        f.costNav = parseFloat(newCost.toFixed(4));
+        f.amount = parseFloat((newS * nav).toFixed(2));
+        if (rec.tag) f.tag = rec.tag;
+        if (rec.name && rec.name !== code) f.name = rec.name;
+      }
+    } else {
+      const sellS = parseFloat(rec.shares);
+      if (isNaN(sellS) || sellS <= 0) {
+        showToast('卖出份额无效', 'error');
+        return false;
+      }
+      const idx = funds.findIndex(f => f.code === code);
+      if (idx < 0) {
+        showToast('持仓中无该基金，无法同步减仓', 'error');
+        return false;
+      }
+      const f = funds[idx];
+      const baseNav = f.costNav || f.prevNav || nav;
+      const oldS = (f.holdingShares != null && f.holdingShares > 0)
+        ? f.holdingShares
+        : (f.amount && baseNav ? f.amount / baseNav : 0);
+      if (oldS <= 0 || sellS > oldS + 1e-6) {
+        showToast('卖出份额超过当前持仓可减份额', 'error');
+        return false;
+      }
+      const newS = oldS - sellS;
+      if (newS < 0.0001) {
+        funds.splice(idx, 1);
+      } else {
+        f.holdingShares = parseFloat(newS.toFixed(4));
+        f.holdingSharesLocked = true;
+        f.amount = parseFloat((newS * nav).toFixed(2));
+      }
+    }
+
+    rec.holdingsSynced = true;
+    rec.needsConfirmToSync = false;
+    save();
+    saveOperationDiary();
+    render();
+    renderRanking();
+    updateSummary();
+    return true;
+  }
+
+  /** 曾用估值记账且未同步的条目：当可操作日 rec.date 的确认净值可从行情或PZD 取得时，写入持仓并更新日记 */
+  async function _diaryTryApplyPending() {
+    const todayStr = getTodayStr();
+    const pending = operationDiary
+      .filter(r => !r.holdingsSynced && r.needsConfirmToSync && r.date && r.date <= todayStr)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
+        String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    for (const rec of pending) {
+      const opDate = rec.date;
+      let cnav = null;
+      const nt = 'confirmed';
+      const f = funds.find(x => x.code === rec.code);
+      if (f && f.confirmedDate === opDate && f.confirmedNav != null && !isNaN(f.confirmedNav) && f.navConfirmed) {
+        cnav = f.confirmedNav;
+      } else {
+        try {
+          const data = await fetchOne(rec.code);
+          if (data.jzrq === opDate && data.dwjz) {
+            cnav = parseFloat(data.dwjz);
+          }
+        } catch (_) {}
+      }
+      if (cnav == null || isNaN(cnav) || cnav <= 0) {
+        try {
+          const trend = await fetchPingzhongdata(rec.code);
+          const hit = _pzdNavOnDate(trend, opDate);
+          if (hit != null && !isNaN(hit) && hit > 0) cnav = hit;
+        } catch (_) {}
+      }
+      if (cnav == null || isNaN(cnav) || cnav <= 0) continue;
+      rec.nav = cnav;
+      rec.navType = nt;
+      if (!_diaryApplyToHoldings(rec)) {
+        rec.needsConfirmToSync = false;
+        saveOperationDiary();
+      }
+    }
+    renderOperationDiary();
+  }
+
+  function _odEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  function _odNavTypeLabel(t) {
+    if (t === 'confirmed') return '确认净值';
+    if (t === 'estimate') return '估值';
+    return '手工';
+  }
+
+  /** 卖出：份额×净值；估值为预估回款，确认/手工为实际回款（以表内参考净值计算） */
+  function _odFormatSellProceedsCell(r) {
+    const sh = parseFloat(r.shares);
+    const nv = parseFloat(r.nav);
+    if (isNaN(sh) || sh <= 0 || isNaN(nv) || nv <= 0) return '—';
+    const yuan = sh * nv;
+    const moneyStr = '¥' + Number(yuan).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (r.navType === 'estimate') {
+      return `<span style="font-size:11px;color:var(--text-muted);">预估</span> ${moneyStr}`;
+    }
+    return `<span style="font-size:11px;color:var(--text-muted);">实际</span> ${moneyStr}`;
+  }
+
+  function _odRefreshSellPreview() {
+    const el = document.getElementById('od_m_sell_preview');
+    if (!el) return;
+    const sellEl = document.querySelector('input[name="od_m_side"][value="sell"]');
+    if (!sellEl || !sellEl.checked) {
+      el.textContent = '';
+      return;
+    }
+    const sh = parseFloat(document.getElementById('od_m_money').value);
+    const navInp = document.getElementById('od_m_nav');
+    const nv = parseFloat(navInp && navInp.value);
+    const nt = (navInp && navInp.dataset.odNavType) || 'manual';
+    if (isNaN(sh) || sh <= 0 || isNaN(nv) || nv <= 0) {
+      el.textContent = '';
+      return;
+    }
+    const yuan = sh * nv;
+    const moneyStr = '¥' + Number(yuan).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (nt === 'estimate') {
+      el.textContent = '预估卖出回款约 ' + moneyStr + '（确认净值公布后自动按实际净值重算）';
+    } else {
+      el.textContent = '按当前参考净值，卖出回款约 ' + moneyStr;
+    }
+  }
+
+  function _odUpdateQtyField() {
+    const label = document.getElementById('od_m_qty_label');
+    const inp = document.getElementById('od_m_money');
+    if (!label || !inp) return;
+    const sellEl = document.querySelector('input[name="od_m_side"][value="sell"]');
+    const sell = sellEl && sellEl.checked;
+    if (sell) {
+      label.textContent = '份额';
+      inp.placeholder = '卖出或减仓的份额';
+      inp.step = '0.0001';
+    } else {
+      label.textContent = '金额（元）';
+      inp.placeholder = '本次买入或加仓金额';
+      inp.step = '0.01';
+    }
+    _odRefreshSellPreview();
+  }
+
+  function renderOperationDiary() {
+    const tbody = document.getElementById('odTbody');
+    const empty = document.getElementById('odEmpty');
+    const wrap = document.getElementById('odTableWrap');
+    if (!tbody) return;
+    const sorted = [...operationDiary].sort((a, b) => {
+      const d = (b.date || '').localeCompare(a.date || '');
+      if (d !== 0) return d;
+      return (b.createdAt || '').localeCompare(a.createdAt || '');
+    });
+    if (sorted.length === 0) {
+      tbody.innerHTML = '';
+      if (wrap) wrap.style.display = 'none';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (wrap) wrap.style.display = '';
+    if (empty) empty.style.display = 'none';
+    tbody.innerHTML = sorted.map(r => {
+      const sideBuy = r.side === 'buy';
+      const badge = sideBuy ? 'od-badge-buy' : 'od-badge-sell';
+      const sideTxt = sideBuy ? '买入' : '卖出';
+      let qtyDisplay;
+      if (!sideBuy && r.shares != null && !isNaN(r.shares)) {
+        qtyDisplay = Number(r.shares).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' 份';
+      } else if (r.money != null && !isNaN(r.money)) {
+        qtyDisplay = '¥' + Number(r.money).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      } else {
+        qtyDisplay = '—';
+      }
+      const nav = r.nav != null && !isNaN(r.nav) ? Number(r.nav).toFixed(4) : '--';
+      const sellProceedsCell = sideBuy ? '—' : _odFormatSellProceedsCell(r);
+      let syncCell;
+      if (r.holdingsSynced) syncCell = '<span style="color:var(--loss);font-size:12px;">已同步</span>';
+      else if (r.needsConfirmToSync) syncCell = '<span style="color:var(--text-muted);font-size:12px;">待确认净值</span>';
+      else syncCell = '<span style="color:var(--profit);font-size:12px;">待同步</span>';
+      return `<tr data-id="${_odEsc(r.id)}">
+        <td>${_odEsc(r.date || '')}</td>
+        <td><div>${_odEsc(r.name || '')}</div><span class="od-code">${_odEsc(r.code || '')}</span></td>
+        <td>${_odEsc(r.tag || '—')}</td>
+        <td><span class="${badge}">${sideTxt}</span></td>
+        <td style="text-align:right">${qtyDisplay}</td>
+        <td style="text-align:right">${nav}</td>
+        <td style="text-align:right">${sellProceedsCell}</td>
+        <td><span class="od-nav-type">${_odNavTypeLabel(r.navType)}</span></td>
+        <td>${syncCell}</td>
+        <td><button type="button" class="btn btn-remove" style="padding:4px 10px;font-size:12px;" onclick="_odDelete('${_odEsc(r.id)}')">删除</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function _odRebuildPickOptions() {
+    const sel = document.getElementById('od_m_pick');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— 手动填写代码与名称 —</option>' +
+      funds.map(f => `<option value="${_odEsc(f.code)}">${_odEsc(f.name || f.code)} (${_odEsc(f.code)})</option>`).join('');
+    if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+  }
+
+  window._odOpenAdd = function () {
+    _odRebuildPickOptions();
+    document.getElementById('od_m_date').value = getTodayStr();
+    document.getElementById('od_m_pick').value = '';
+    document.getElementById('od_m_code').value = '';
+    document.getElementById('od_m_name').value = '';
+    document.getElementById('od_m_tag').value = '';
+    document.getElementById('od_m_money').value = '';
+    const navEl = document.getElementById('od_m_nav');
+    navEl.value = '';
+    delete navEl.dataset.odNavType;
+    document.getElementById('od_m_navhint').textContent = '';
+    document.querySelector('input[name="od_m_side"][value="buy"]').checked = true;
+    _odUpdateQtyField();
+    document.getElementById('od_m_code').readOnly = false;
+    document.getElementById('od_m_name').readOnly = false;
+    document.getElementById('odModal').classList.add('open');
+  };
+
+  window._odCloseModal = function () {
+    document.getElementById('odModal').classList.remove('open');
+  };
+
+  (function () {
+    const pick = document.getElementById('od_m_pick');
+    if (!pick) return;
+    pick.addEventListener('change', function () {
+      const code = this.value;
+      const cEl = document.getElementById('od_m_code');
+      const nEl = document.getElementById('od_m_name');
+      const tEl = document.getElementById('od_m_tag');
+      if (!code) {
+        cEl.value = ''; nEl.value = ''; tEl.value = '';
+        cEl.readOnly = false; nEl.readOnly = false;
+        return;
+      }
+      const f = funds.find(x => x.code === code);
+      if (f) {
+        cEl.value = f.code;
+        nEl.value = f.name || f.code;
+        tEl.value = f.tag || '';
+        cEl.readOnly = true; nEl.readOnly = true;
+      }
+    });
+  })();
+
+  (function () {
+    document.querySelectorAll('input[name="od_m_side"]').forEach(function (radio) {
+      radio.addEventListener('change', _odUpdateQtyField);
+    });
+    const moneyInp = document.getElementById('od_m_money');
+    const navInp = document.getElementById('od_m_nav');
+    if (moneyInp) moneyInp.addEventListener('input', _odRefreshSellPreview);
+    if (navInp) navInp.addEventListener('input', _odRefreshSellPreview);
+  })();
+
+  window._odFillNavFromHoldings = function () {
+    const code = (document.getElementById('od_m_code').value || '').trim();
+    const navInp = document.getElementById('od_m_nav');
+    const hint = document.getElementById('od_m_navhint');
+    if (!code) { showToast('请先填写或选择基金代码', 'error'); return; }
+    const f = funds.find(x => x.code === code);
+    if (!f) { showToast('当前持仓中未找到该基金，请手填净值', 'error'); return; }
+    const todayStr = getTodayStr();
+    const hasToday = f.navConfirmed ||
+      (f.gsz != null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === todayStr);
+    if (!hasToday || f.prevNav == null) {
+      showToast('该基金暂无今日净值数据，请先刷新估值或手填', 'error');
+      return;
+    }
+    const currentNav = f.navConfirmed ? f.confirmedNav : f.gsz;
+    const navType = f.navConfirmed ? 'confirmed' : 'estimate';
+    if (currentNav == null || isNaN(currentNav)) {
+      showToast('无法读取净值，请手填', 'error');
+      return;
+    }
+    navInp.value = String(currentNav);
+    navInp.dataset.odNavType = navType;
+    hint.textContent = navType === 'confirmed' ? '已填入：今日确认净值' : '已填入：今日估值（盘中）';
+    _odRefreshSellPreview();
+  };
+
+  window._odSubmit = function () {
+    const date = (document.getElementById('od_m_date').value || '').trim();
+    const code = (document.getElementById('od_m_code').value || '').trim();
+    const name = (document.getElementById('od_m_name').value || '').trim();
+    const tag = (document.getElementById('od_m_tag').value || '').trim() || null;
+    const side = document.querySelector('input[name="od_m_side"]:checked');
+    const qtyRaw = parseFloat(document.getElementById('od_m_money').value);
+    const navInp = document.getElementById('od_m_nav');
+    const nav = parseFloat(navInp.value);
+    const isSell = side && side.value === 'sell';
+    if (!date) { showToast('请选择操作日期', 'error'); return; }
+    if (!code || !name) { showToast('请填写基金代码和名称', 'error'); return; }
+    if (!side) { showToast('请选择买入或卖出', 'error'); return; }
+    if (isSell) {
+      if (isNaN(qtyRaw) || qtyRaw <= 0) { showToast('请输入有效份额', 'error'); return; }
+    } else {
+      if (isNaN(qtyRaw) || qtyRaw <= 0) { showToast('请输入有效金额', 'error'); return; }
+    }
+    if (isNaN(nav) || nav <= 0) { showToast('请输入有效参考净值（可用「从持仓填入」）', 'error'); return; }
+    let navType = navInp.dataset.odNavType || 'manual';
+    if (navType !== 'estimate' && navType !== 'confirmed') navType = 'manual';
+    const todayStrD = getTodayStr();
+    if (date > todayStrD) {
+      showToast('操作日期不能晚于今天', 'error');
+      return;
+    }
+    // 凡「估值」均等该日确认净值落库后再写入持仓，避免用盘中预估提前改仓位
+    const needsConfirmToSync = (navType === 'estimate');
+    const rec = {
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('od_' + Date.now() + '_' + Math.random().toString(36).slice(2)),
+      date,
+      code,
+      name,
+      tag,
+      side: isSell ? 'sell' : 'buy',
+      money: isSell ? null : qtyRaw,
+      shares: isSell ? qtyRaw : null,
+      nav,
+      navType,
+      holdingsSynced: false,
+      needsConfirmToSync,
+      createdAt: new Date().toISOString()
+    };
+    operationDiary.push(rec);
+    if (!needsConfirmToSync) {
+      if (!_diaryApplyToHoldings(rec)) {
+        operationDiary.pop();
+        return;
+      }
+    } else {
+      saveOperationDiary();
+      renderOperationDiary();
+    }
+    delete navInp.dataset.odNavType;
+    _odCloseModal();
+    showToast(needsConfirmToSync ? '已保存，确认净值公布后请刷新估值以写入持仓' : '已保存并同步持仓', 'success');
+  };
+
+  window._odDelete = function (id) {
+    _showConfirm('删除记录', '确定删除这条操作记录？', function () {
+      operationDiary = operationDiary.filter(r => r.id !== id);
+      saveOperationDiary();
+      renderOperationDiary();
+      showToast('已删除', 'success');
+    });
+  };
 
   /* ── Supabase 异步存储 ── */
   let _sbSaveTimer = null;
@@ -2377,7 +2947,7 @@
       showToast('☁ 正在加载云端数据…', 'success');
       const query = _sbClient
         .from('user_data')
-        .select('funds, watchlist, pnl_history, ai_key')
+        .select('funds, watchlist, pnl_history, operation_diary, ai_key')
         .eq('user_id', _sbUser.id)
         .maybeSingle();
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 20000));
@@ -2394,9 +2964,12 @@
         localStorage.setItem('fund_calc_v6', '[]');
         localStorage.setItem('fund_watchlist_v1', '[]');
         localStorage.setItem(PNL_KEY, '{}');
-        _sbCache = { funds: [], watchlist: [], pnl_history: {} };
+        localStorage.setItem(OD_KEY, '[]');
+        operationDiary = [];
+        _sbCache = { funds: [], watchlist: [], pnl_history: {}, operation_diary: [] };
         render();
         updateSummary();
+        renderOperationDiary();
         _sbLoaded = true;
         _sbSyncing = false;
         localStorage.setItem('sb_cached_uid', _sbUser.id);
@@ -2407,6 +2980,7 @@
         funds:       data.funds       || [],
         watchlist:   data.watchlist   || [],
         pnl_history: data.pnl_history || {},
+        operation_diary: Array.isArray(data.operation_diary) ? data.operation_diary : [],
         ...(data.ai_key ? { ai_key: data.ai_key } : {})
       };
       if (data.ai_key) localStorage.setItem('deepseek_api_key', data.ai_key);
@@ -2441,14 +3015,28 @@
         pnlHistory = data.pnl_history;
         localStorage.setItem(PNL_KEY, JSON.stringify(pnlHistory));
       }
+      if (Array.isArray(data.operation_diary)) {
+        operationDiary = data.operation_diary;
+        localStorage.setItem(OD_KEY, JSON.stringify(operationDiary));
+      } else if (data.operation_diary == null) {
+        operationDiary = [];
+        localStorage.setItem(OD_KEY, '[]');
+      }
       _sbLoaded = true;
       localStorage.setItem('sb_cached_uid', _sbUser.id);
       render();
       updateSummary();
+      renderOperationDiary();
       showToast('✅ 云端数据已加载：' + funds.length + '只基金', 'success');
       _sbSyncing = false; // 解锁
-      // 云端数据已有上次估值，只需一次刷新获取最新价格
-      if (funds.length > 0 || watchlist.length > 0) refreshAll();
+      // 云端数据已有上次估值：有名单则整轮刷新（内含操作日记 pending）；无名单也静默试一次 pending（仅存日记的新买等）
+      try {
+        if (funds.length > 0 || watchlist.length > 0) {
+          await refreshAll();
+        } else {
+          await _diaryTryApplyPending();
+        }
+      } catch (_) {}
     } catch (e) {
       if (attempt < 3) { return _sbLoadCloud(attempt + 1); }
       _sbSyncing = false; // 解锁
@@ -2476,12 +3064,19 @@
   async function _sbBootstrap() {
     _sbSyncing = true; // 启动期间锁定，禁止回写云端
     _renderUserArea(null);
-
+    if (!_sbEnsureClient()) {
+      await new Promise(r => setTimeout(r, 200));
+      _sbEnsureClient();
+    }
     if (!_sbClient) {
-      // 未配置 Supabase：直接弹出配置窗口，内容继续隐藏
       _sbSyncing = false;
       document.getElementById('authModal').classList.add('open');
-      setTimeout(() => _openSbConfig(), 80);
+      // 代码里已写死 URL/KEY：弹窗多半是 CDN 的 supabase.js 没加载，不是「没填配置」
+      if (SB_URL && SB_KEY) {
+        showToast('云同步库未加载（多为网络/拦截 CDN）。请换网络、关广告拦截后刷新，或用 HTTPS 打开页面', 'error');
+      } else {
+        setTimeout(() => _openSbConfig(), 80);
+      }
       return;
     }
 
@@ -2493,10 +3088,11 @@
         // 本地缓存属于其他用户时先清空，防止闪现
         const cachedUid = localStorage.getItem('sb_cached_uid');
         if (cachedUid && cachedUid !== _sbUser.id) {
-          funds = []; watchlist = []; pnlHistory = {};
+          funds = []; watchlist = []; pnlHistory = {}; operationDiary = [];
           localStorage.setItem('fund_calc_v6', '[]');
           localStorage.setItem('fund_watchlist_v1', '[]');
           localStorage.setItem(PNL_KEY, '{}');
+          localStorage.setItem(OD_KEY, '[]');
         }
         document.getElementById('authModal').classList.remove('open');
         document.getElementById('appContent').style.display = '';
@@ -2516,7 +3112,11 @@
 
   /* ── Auth Modal 操作 ── */
   window._openAuthModal = function () {
-    if (!_sbClient) { _openSbConfig(); return; }
+    if (!_sbEnsureClient()) {
+      if (SB_URL && SB_KEY) showToast('云同步库未加载，请刷新页面或检查网络', 'error');
+      else _openSbConfig();
+      return;
+    }
     document.getElementById('authModal').classList.add('open');
   };
 
@@ -2574,12 +3174,12 @@
   window._calClearHistory = function () {
     _showConfirm(
       '清空历史记录',
-      '确定清空所有历史盈亏记录吗？<br>清空后需点击「刷新日历」重新计算。',
+      '确定清空所有历史盈亏记录吗？<br>清空后请在「我的持仓」点击「刷新估值」重新汇总。',
       function () {
         pnlHistory = {};
         savePnlHistory();
         renderCalendar();
-        showToast('已清空，请点击「刷新日历」重新计算', 'success');
+        showToast('已清空，请在持仓页点击「刷新估值」重新计算', 'success');
       }
     );
   };
@@ -2656,17 +3256,16 @@
     }
 
     if (recorded) {
-      // 清理临时标记后再保存
       Object.values(pnlHistory).forEach(r => { delete r._done; });
       savePnlHistory();
-      if (document.getElementById('tab3-content').style.display !== 'none') renderCalendar();
     }
   }
 
   /* ══════════════════════════════════════
-     盈亏日历 — 渲染
+     原盈亏日历渲染（DOM 已移除，无 calBody 时直接返回，避免报错）
   ══════════════════════════════════════ */
   function renderCalendar() {
+    if (!document.getElementById('calBody')) return;
     const now = new Date();
     if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
 
@@ -2754,6 +3353,7 @@
   window._calNext = function () { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
   window._calRefresh = async function () {
     const btn = document.getElementById('calRefreshBtn');
+    if (!btn) { await refreshAll(); return; }
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
     await refreshAll();
@@ -3274,8 +3874,8 @@
       const costNav = f.costNav || f.prevNav;
       const hasTodayData = f.navConfirmed ||
         (f.gsz !== null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === todayStr);
-      const shares = (f.holdingShares !== null && f.holdingShares > 0)
-        ? f.holdingShares : (costNav && f.amount ? f.amount / costNav : 0);
+      // 与表格「今日盈亏」一致：始终用 持仓金额 / costNav 推算份额（编辑金额后汇总才与各行对齐）
+      const shares = (costNav && f.amount) ? f.amount / costNav : 0;
       if (hasTodayData && f.prevNav && currentNav !== null && !isNaN(currentNav) && shares > 0) {
         todayProfitSum += (currentNav - f.prevNav) * shares;
         yesterdayValue += f.prevNav * shares;
@@ -3487,13 +4087,22 @@
   load();
   loadWatchlist();
   loadPnlHistory();
+  loadOperationDiary();
   render();
   updateSummary();
   updateNavModeUI();
   _sbBootstrap();
   resetTimer();
   if (!_sbClient) {
-    if (funds.length > 0 || watchlist.length > 0) refreshAll();
+    void (async () => {
+      try {
+        if (funds.length > 0 || watchlist.length > 0) {
+          await refreshAll();
+        } else {
+          await _diaryTryApplyPending();
+        }
+      } catch (_) {}
+    })();
   }
 
   /* ── 列宽拖拽 ── */
