@@ -1155,10 +1155,27 @@
   /* 操作日记 */
   .od-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 0; }
   .od-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .od-table th, .od-table td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .od-table th, .od-table td {
+    padding: 12px 10px;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border);
+  }
   .od-table th { color: var(--text-secondary); font-weight: 600; white-space: nowrap; }
   .od-table td { color: var(--text-primary); }
-  .od-code { color: var(--text-muted); font-size: 12px; }
+  /* 与持仓表「成本/份额」.cb-value 同级可读色，避免 --text-muted 过浅 */
+  .od-sub { font-size: 11px; color: var(--text-secondary); }
+  .od-nav-type { font-size: 12px; color: var(--text-secondary); }
+  .od-code { color: var(--text-secondary); font-size: 12px; display: block; margin-top: 2px; }
+  .od-table .btn-remove {
+    color: var(--text-secondary);
+    border-color: var(--border-light);
+  }
+  .od-table .btn-remove:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.06);
+  }
   .od-badge-buy {
     display: inline-block; padding: 2px 8px; border-radius: 6px;
     font-size: 12px; font-weight: 600; background: rgba(240, 64, 64, 0.15); color: var(--profit);
@@ -1167,7 +1184,6 @@
     display: inline-block; padding: 2px 8px; border-radius: 6px;
     font-size: 12px; font-weight: 600; background: rgba(34, 196, 94, 0.15); color: var(--loss);
   }
-  .od-nav-type { font-size: 12px; color: var(--text-muted); }
   .od-empty { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 14px; }
   .od-modal-box {
     background: var(--bg-card);
@@ -1557,9 +1573,9 @@
               <th>基金</th>
               <th>标签</th>
               <th>方向</th>
-              <th style="text-align:right">金额 / 份额</th>
-              <th style="text-align:right">参考净值</th>
-              <th style="text-align:right">卖出回款</th>
+              <th>金额 / 份额</th>
+              <th>参考净值</th>
+              <th>卖出回款</th>
               <th>净值类型</th>
               <th>持仓同步</th>
               <th style="width:72px">操作</th>
@@ -2652,9 +2668,9 @@
     const yuan = sh * nv;
     const moneyStr = '¥' + Number(yuan).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (r.navType === 'estimate') {
-      return `<span style="font-size:11px;color:var(--text-muted);">预估</span> ${moneyStr}`;
+      return `<span class="od-sub">预估</span> ${moneyStr}`;
     }
-    return `<span style="font-size:11px;color:var(--text-muted);">实际</span> ${moneyStr}`;
+    return `<span class="od-sub">实际</span> ${moneyStr}`;
   }
 
   function _odRefreshSellPreview() {
@@ -2734,16 +2750,16 @@
       const sellProceedsCell = sideBuy ? '—' : _odFormatSellProceedsCell(r);
       let syncCell;
       if (r.holdingsSynced) syncCell = '<span style="color:var(--loss);font-size:12px;">已同步</span>';
-      else if (r.needsConfirmToSync) syncCell = '<span style="color:var(--text-muted);font-size:12px;">待确认净值</span>';
+      else if (r.needsConfirmToSync) syncCell = '<span style="color:var(--text-secondary);font-size:12px;">待确认净值</span>';
       else syncCell = '<span style="color:var(--profit);font-size:12px;">待同步</span>';
       return `<tr data-id="${_odEsc(r.id)}">
         <td>${_odEsc(r.date || '')}</td>
         <td><div>${_odEsc(r.name || '')}</div><span class="od-code">${_odEsc(r.code || '')}</span></td>
         <td>${_odEsc(r.tag || '—')}</td>
         <td><span class="${badge}">${sideTxt}</span></td>
-        <td style="text-align:right">${qtyDisplay}</td>
-        <td style="text-align:right">${nav}</td>
-        <td style="text-align:right">${sellProceedsCell}</td>
+        <td>${qtyDisplay}</td>
+        <td>${nav}</td>
+        <td>${sellProceedsCell}</td>
         <td><span class="od-nav-type">${_odNavTypeLabel(r.navType)}</span></td>
         <td>${syncCell}</td>
         <td><button type="button" class="btn btn-remove" style="padding:4px 10px;font-size:12px;" onclick="_odDelete('${_odEsc(r.id)}')">删除</button></td>
