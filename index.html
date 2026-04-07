@@ -1853,6 +1853,15 @@
   let _sbCache  = {};   // 本地镜像：{ funds, watchlist, pnl_history, operation_diary }
   let _sbLoaded = false;
   let _sbSyncing = false; // 云端同步中，禁止回写
+  /** 合并并发加载：避免 onAuthStateChange 连触发导致 auth storage Lock 冲突 */
+  let _sbCloudLoadPromise = null;
+  /** 串行化 PostgREST 请求，减少与 auth 读写 session 并发（避免 Lock "…auth-token" was stolen） */
+  let _sbDbGate = Promise.resolve();
+  function _sbRunDb(fn) {
+    const run = _sbDbGate.then(() => fn());
+    _sbDbGate = run.then(function () { return null; }, function () { return null; });
+    return run;
+  }
 
   const SB_URL = 'https://jonjgepdiybwrvncfokp.supabase.co';
   const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpvbmpnZXBkaXlid3J2bmNmb2twIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MTMzNzQsImV4cCI6MjA4ODE4OTM3NH0.wgR5FkOauG4Y0H3mr3DAa0FuM4XlVO8XOh3CLbgwpq0';
@@ -1906,6 +1915,88 @@
     return d.getFullYear() + '-' +
       String(d.getMonth() + 1).padStart(2, '0') + '-' +
       String(d.getDate()).padStart(2, '0');
+  }
+
+  /** fundgz 的 gztime 可能是「YYYY-MM-DD …」，也可能是「MM-DD HH:mm」（无年份），与 todayStr 比较时需兼容 */
+  function _gztimeLooksToday(gztime, todayStr) {
+    if (!gztime) return false;
+    const g = String(gztime).trim();
+    if (g.startsWith(todayStr)) return true;
+    const md = todayStr.slice(5);
+    if (g.startsWith(md) && g.length >= 5) {
+      const next = g[5];
+      if (next === undefined || next === ' ' || next === 'T') return true;
+    }
+    const m = g.match(/^(\d{1,2})-(\d{1,2})(?:\s|T|$)/);
+    if (m) {
+      const mm = String(m[1]).padStart(2, '0');
+      const dd = String(m[2]).padStart(2, '0');
+      if (mm + '-' + dd === md) return true;
+    }
+    return false;
+  }
+
+  /** 持仓：是否有今日估值/确认价用于涨跌幅、今日盈亏（jzrq 滞后时只要有 gsz+prevNav 仍应展示） */
+  function _fundHasTodayNavData(f) {
+    const todayStr = getTodayStr();
+    if (f.navConfirmed) return true;
+    if (f.gsz == null || isNaN(f.gsz) || f.prevNav == null) return false;
+    if (f.jzrq === todayStr) return true;
+    if (_gztimeLooksToday(f.gztime, todayStr)) return true;
+    if (isPreMarketNow()) return false;
+    return true;
+  }
+
+  function _watchHasTodayNavData(item) {
+    const todayStr = getTodayStr();
+    if (item.navConfirmed) return true;
+    if (item.gsz == null || isNaN(item.gsz)) return false;
+    if (item.jzrq === todayStr) return true;
+    if (_gztimeLooksToday(item.gztime, todayStr)) return true;
+    if (isPreMarketNow()) return false;
+    return true;
+  }
+
+  /**
+   * fundgz 的 dwjz+jzrq 常滞后一天，但 gsz/gszzl 已按「上一披露日」为基准；用 gsz÷(1+涨跌幅%) 反推与涨跌幅同口径的昨收，避免表格里昨净比真实少一天。
+   */
+  function _impliedPrevFromGszGszzl(gsz, gszzl) {
+    const g = parseFloat(gsz);
+    const r = parseFloat(gszzl);
+    if (!(g > 0) || isNaN(r)) return null;
+    const d = 1 + r / 100;
+    if (Math.abs(d) < 1e-8) return null;
+    const p = g / d;
+    if (!(p > 0)) return null;
+    return parseFloat(p.toFixed(4));
+  }
+
+  /** 今日盈亏用份额：优先持仓份额；否则市值÷现价（与金额列一致）。勿再用 amount÷成本净值，会严重偏离昨净→今估 */
+  function _effSharesForDailyPnl(f, currentNav) {
+    if (f.holdingShares != null && !isNaN(f.holdingShares) && f.holdingShares > 0) {
+      return f.holdingShares;
+    }
+    const nav = parseFloat(currentNav);
+    if (nav > 0 && f.amount) return f.amount / nav;
+    const costNav = f.costNav || f.prevNav;
+    if (costNav && f.amount) return f.amount / costNav;
+    return 0;
+  }
+
+  /**
+   * 今日盈亏（元）：与表格「涨跌幅」 pill（gszzl）同符号、同口径。
+   * 优先 昨持股市值×涨跌幅%；无有效 gszzl 时再 净值差×份额（确认/估值均一致，避免 navConfirmed 与接口 gszzl 基准不一致时再次出现符号相反）。
+   */
+  function _todayProfitYuan(f, currentNav, hasTodayData) {
+    if (!hasTodayData || f.prevNav == null || isNaN(f.prevNav) || f.prevNav <= 0) return 0;
+    if (currentNav == null || isNaN(currentNav)) return 0;
+    const effS = _effSharesForDailyPnl(f, currentNav);
+    if (effS <= 0) return 0;
+    const gz = parseFloat(f.gszzl);
+    if (!isNaN(gz)) {
+      return effS * f.prevNav * (gz / 100);
+    }
+    return (currentNav - f.prevNav) * effS;
   }
 
   function save() {
@@ -2051,11 +2142,11 @@
         // 今天已有确认净值时，不用估值覆盖 gsz / gszzl
         // 只有 PZD 来源的确认净值才算"已确认"，fundgz 来源的允许 PZD 再次覆盖
         const alreadyConfirmedToday = (f.confirmedDate === getTodayStr() && f.confirmedSource === 'pzd');
-        // fundgz 数据有效性：jzrq 在 3 天内才更新估值，过期数据不覆盖
+        // jzrq 多为「最新披露净值日」，与今天常不一致；盘中 gsz/gszzl 仍有效，勿再用「jzrq≥3天内」误拒更新
         const gzJzrq = (data.jzrq || '');
-        const gzThreeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
-        const gzDataFresh = gzJzrq >= gzThreeDaysAgo;
-        if (!alreadyConfirmedToday && gzDataFresh) {
+        const gzEstCutoff = new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10);
+        const gzEstimateOk = !gzJzrq || gzJzrq >= gzEstCutoff;
+        if (!alreadyConfirmedToday && gzEstimateOk) {
           if (data.gsz)  f.gsz  = parseFloat(data.gsz);
           if (data.gszzl !== undefined) f.gszzl = parseFloat(data.gszzl);
           if (data.gztime) f.gztime = data.gztime;
@@ -2127,10 +2218,8 @@
           const apiDateFresh = apiJzrq >= threeDaysAgo;
           if (data.dwjz && apiDateFresh) f.prevNav = parseFloat(data.dwjz);
           if (data.dwjz && !f.costNav && apiDateFresh) f.costNav = parseFloat(data.dwjz);
-          // 若本地存有更新的确认净值（confirmedDate > API 的 jzrq），以本地确认净值覆盖
+          // 若本地存有更新的确认净值（confirmedDate > API 的 jzrq），只同步金额，勿把 prevNav 写成 confirmedNav（后者常为「今日确认价」，会误当昨日）
           if (f.confirmedNav && f.confirmedDate && f.confirmedDate > apiJzrq) {
-            f.prevNav = f.confirmedNav;
-            // 同步更新持仓金额（周末/新一天打开页面时补充执行）
             if (f.holdingShares > 0) {
               f.amount = parseFloat((f.holdingShares * f.confirmedNav).toFixed(2));
             }
@@ -2144,6 +2233,11 @@
           if (!f.holdingSharesLocked && f.holdingShares === null && f.costNav && f.amount) {
             f.holdingShares = parseFloat((f.amount / f.costNav).toFixed(4));
           }
+        }
+        // 非「今日已 PZD 确认」时，用 gsz/gszzl 同源反推昨收，覆盖 fundgz dwjz 滞后（否则昨净会少更新一天）
+        if (!alreadyConfirmedToday) {
+          const imp = _impliedPrevFromGszGszzl(f.gsz, f.gszzl);
+          if (imp != null && imp > 0) f.prevNav = imp;
         }
         f.loading = false;
         ok++;
@@ -2170,6 +2264,9 @@
             const lastDate = new Date(last.x + 8 * 3600 * 1000).toISOString().slice(0, 10);
             const cnav = last.y;
             if (lastDate === todayStr2) {
+              if (trend.length >= 2) {
+                f.prevNav = parseFloat(parseFloat(trend[trend.length - 2].y).toFixed(4));
+              }
               // 今日确认净值已出（PZD 来源，最权威）
               f.navConfirmed  = true;
               f.confirmedNav  = cnav;
@@ -2839,9 +2936,7 @@
     if (!code) { showToast('请先填写或选择基金代码', 'error'); return; }
     const f = funds.find(x => x.code === code);
     if (!f) { showToast('当前持仓中未找到该基金，请手填净值', 'error'); return; }
-    const todayStr = getTodayStr();
-    const hasToday = f.navConfirmed ||
-      (f.gsz != null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === todayStr);
+    const hasToday = _fundHasTodayNavData(f);
     if (!hasToday || f.prevNav == null) {
       showToast('该基金暂无今日净值数据，请先刷新估值或手填', 'error');
       return;
@@ -2937,17 +3032,19 @@
     if (_sbSaveTimer) clearTimeout(_sbSaveTimer);
     _sbSaveTimer = setTimeout(async () => {
       try {
-        const payload = {
-          user_id: _sbUser.id,
-          ..._sbCache,
-          updated_at: new Date().toISOString()
-        };
-        const { error } = await _sbClient.from('user_data').upsert(payload, { onConflict: 'user_id' });
-        if (error) {
-          showToast('☁ 保存失败: ' + error.message, 'error');
-        } else {
-          showToast('☁ 已同步到云端', 'success');
-        }
+        await _sbRunDb(async () => {
+          const payload = {
+            user_id: _sbUser.id,
+            ..._sbCache,
+            updated_at: new Date().toISOString()
+          };
+          const { error } = await _sbClient.from('user_data').upsert(payload, { onConflict: 'user_id' });
+          if (error) {
+            showToast('☁ 保存失败: ' + error.message, 'error');
+          } else {
+            showToast('☁ 已同步到云端', 'success');
+          }
+        });
       } catch (e) {
         showToast('☁ 保存异常: ' + e.message, 'error');
       }
@@ -2955,108 +3052,141 @@
   }
 
   /* ── 从云端拉取并覆盖本地 ── */
-  async function _sbLoadCloud(retry) {
+  async function _sbLoadCloud() {
     if (!_sbClient || !_sbUser) return;
-    _sbSyncing = true; // 加锁：禁止回写
-    const attempt = retry || 1;
-    try {
-      showToast('☁ 正在加载云端数据…', 'success');
-      const query = _sbClient
-        .from('user_data')
-        .select('funds, watchlist, pnl_history, operation_diary, ai_key')
-        .eq('user_id', _sbUser.id)
-        .maybeSingle();
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 20000));
-      const { data, error } = await Promise.race([query, timeout]);
-      if (error) {
-        if (attempt < 3) { showToast('☁ 重试中(' + attempt + '/3)…', 'success'); return _sbLoadCloud(attempt + 1); }
-        showToast('❌ 查询错误: ' + error.message, 'error'); return;
-      }
-      if (!data) {
-        // 云端没有数据行：清空本地，从空白开始
-        funds = [];
-        watchlist = [];
-        pnlHistory = {};
-        localStorage.setItem('fund_calc_v6', '[]');
-        localStorage.setItem('fund_watchlist_v1', '[]');
-        localStorage.setItem(PNL_KEY, '{}');
-        localStorage.setItem(OD_KEY, '[]');
-        operationDiary = [];
-        _sbCache = { funds: [], watchlist: [], pnl_history: {}, operation_diary: [] };
-        render();
-        updateSummary();
-        renderOperationDiary();
-        _sbLoaded = true;
-        _sbSyncing = false;
-        localStorage.setItem('sb_cached_uid', _sbUser.id);
-        showToast('☁ 新账户，从空白开始', 'success');
-        return;
-      }
-      _sbCache = {
-        funds:       data.funds       || [],
-        watchlist:   data.watchlist   || [],
-        pnl_history: data.pnl_history || {},
-        operation_diary: Array.isArray(data.operation_diary) ? data.operation_diary : [],
-        ...(data.ai_key ? { ai_key: data.ai_key } : {})
-      };
-      if (data.ai_key) localStorage.setItem('deepseek_api_key', data.ai_key);
-      if (data.funds) {
-        funds = data.funds;
-        funds.forEach(f => {
-          if (f.costNav          === undefined) f.costNav          = null;
-          if (f.confirmedNav     === undefined) f.confirmedNav     = null;
-          if (f.navConfirmed     === undefined) f.navConfirmed     = false;
-          if (f.jzrq             === undefined) f.jzrq             = null;
-          if (f.confirmedDate    === undefined) f.confirmedDate    = null;
-          if (f.tag              === undefined) f.tag              = null;
-          if (f.costBasis        === undefined) f.costBasis        = null;
-          if (f.costBasisLocked  === undefined) f.costBasisLocked  = false;
-          if (f.holdingShares    === undefined) f.holdingShares    = null;
-          if (f.holdingSharesLocked === undefined) f.holdingSharesLocked = false;
-        });
-        localStorage.setItem('fund_calc_v6', JSON.stringify(funds));
-      }
-      if (data.watchlist) {
-        watchlist = data.watchlist;
-        watchlist.forEach(w => {
-          if (w.confirmedDate === undefined) w.confirmedDate = null;
-          if (w.navConfirmed  === undefined) w.navConfirmed  = false;
-          if (w.confirmedNav  === undefined) w.confirmedNav  = null;
-          if (w.jzrq          === undefined) w.jzrq          = null;
-          if (w.tag           === undefined) w.tag           = null;
-        });
-        localStorage.setItem('fund_watchlist_v1', JSON.stringify(watchlist));
-      }
-      if (data.pnl_history) {
-        pnlHistory = data.pnl_history;
-        localStorage.setItem(PNL_KEY, JSON.stringify(pnlHistory));
-      }
-      if (Array.isArray(data.operation_diary)) {
-        operationDiary = data.operation_diary;
-        localStorage.setItem(OD_KEY, JSON.stringify(operationDiary));
-      } else if (data.operation_diary == null) {
-        operationDiary = [];
-        localStorage.setItem(OD_KEY, '[]');
-      }
-      _sbLoaded = true;
-      localStorage.setItem('sb_cached_uid', _sbUser.id);
-      render();
-      updateSummary();
-      renderOperationDiary();
-      showToast('✅ 云端数据已加载：' + funds.length + '只基金', 'success');
-      _sbSyncing = false; // 解锁
-      // 云端数据已有上次估值：有名单则整轮刷新（内含操作日记 pending）；无名单也静默试一次 pending（仅存日记的新买等）
-      try {
-        if (funds.length > 0 || watchlist.length > 0) {
-          await refreshAll();
-        } else {
-          await _diaryTryApplyPending();
+    if (_sbCloudLoadPromise) return _sbCloudLoadPromise;
+    _sbCloudLoadPromise = (async () => {
+      _sbSyncing = true;
+      let lastMsg = '';
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        if (!_sbUser || !_sbClient) break;
+        try {
+          if (attempt === 1) showToast('☁ 正在加载云端数据…', 'success');
+          else {
+            showToast('☁ 重试中(' + attempt + '/3)…', 'success');
+            await new Promise(r => setTimeout(r, 280 * attempt));
+          }
+          const { data, error } = await _sbRunDb(async () => {
+            const qp = _sbClient
+              .from('user_data')
+              .select('funds, watchlist, pnl_history, operation_diary, ai_key')
+              .eq('user_id', _sbUser.id)
+              .maybeSingle();
+            try {
+              return await Promise.race([
+                qp,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('__SB_TIMEOUT__')), 20000))
+              ]);
+            } catch (e) {
+              const msg = e && e.message ? e.message : '';
+              if (msg === '__SB_TIMEOUT__') {
+                await qp.catch(function () { return null; });
+                throw new Error('请求超时');
+              }
+              throw e;
+            }
+          });
+          if (error) {
+            lastMsg = error.message || String(error);
+            if (/stole it|auth-token/i.test(lastMsg) && attempt < 3) {
+              await new Promise(r => setTimeout(r, 500 + attempt * 250));
+            }
+            continue;
+          }
+          if (!data) {
+            funds = [];
+            watchlist = [];
+            pnlHistory = {};
+            localStorage.setItem('fund_calc_v6', '[]');
+            localStorage.setItem('fund_watchlist_v1', '[]');
+            localStorage.setItem(PNL_KEY, '{}');
+            localStorage.setItem(OD_KEY, '[]');
+            operationDiary = [];
+            _sbCache = { funds: [], watchlist: [], pnl_history: {}, operation_diary: [] };
+            render();
+            updateSummary();
+            renderOperationDiary();
+            _sbLoaded = true;
+            _sbSyncing = false;
+            localStorage.setItem('sb_cached_uid', _sbUser.id);
+            showToast('☁ 新账户，从空白开始', 'success');
+            return;
+          }
+          _sbCache = {
+            funds:       data.funds       || [],
+            watchlist:   data.watchlist   || [],
+            pnl_history: data.pnl_history || {},
+            operation_diary: Array.isArray(data.operation_diary) ? data.operation_diary : [],
+            ...(data.ai_key ? { ai_key: data.ai_key } : {})
+          };
+          if (data.ai_key) localStorage.setItem('deepseek_api_key', data.ai_key);
+          if (data.funds) {
+            funds = data.funds;
+            funds.forEach(f => {
+              if (f.costNav          === undefined) f.costNav          = null;
+              if (f.confirmedNav     === undefined) f.confirmedNav     = null;
+              if (f.navConfirmed     === undefined) f.navConfirmed     = false;
+              if (f.jzrq             === undefined) f.jzrq             = null;
+              if (f.confirmedDate    === undefined) f.confirmedDate    = null;
+              if (f.tag              === undefined) f.tag              = null;
+              if (f.costBasis        === undefined) f.costBasis        = null;
+              if (f.costBasisLocked  === undefined) f.costBasisLocked  = false;
+              if (f.holdingShares    === undefined) f.holdingShares    = null;
+              if (f.holdingSharesLocked === undefined) f.holdingSharesLocked = false;
+            });
+            localStorage.setItem('fund_calc_v6', JSON.stringify(funds));
+          }
+          if (data.watchlist) {
+            watchlist = data.watchlist;
+            watchlist.forEach(w => {
+              if (w.confirmedDate === undefined) w.confirmedDate = null;
+              if (w.navConfirmed  === undefined) w.navConfirmed  = false;
+              if (w.confirmedNav  === undefined) w.confirmedNav  = null;
+              if (w.jzrq          === undefined) w.jzrq          = null;
+              if (w.tag           === undefined) w.tag           = null;
+            });
+            localStorage.setItem('fund_watchlist_v1', JSON.stringify(watchlist));
+          }
+          if (data.pnl_history) {
+            pnlHistory = data.pnl_history;
+            localStorage.setItem(PNL_KEY, JSON.stringify(pnlHistory));
+          }
+          if (Array.isArray(data.operation_diary)) {
+            operationDiary = data.operation_diary;
+            localStorage.setItem(OD_KEY, JSON.stringify(operationDiary));
+          } else if (data.operation_diary == null) {
+            operationDiary = [];
+            localStorage.setItem(OD_KEY, '[]');
+          }
+          _sbLoaded = true;
+          localStorage.setItem('sb_cached_uid', _sbUser.id);
+          render();
+          updateSummary();
+          renderOperationDiary();
+          showToast('✅ 云端数据已加载：' + funds.length + '只基金', 'success');
+          _sbSyncing = false;
+          try {
+            if (funds.length > 0 || watchlist.length > 0) {
+              await refreshAll();
+            } else {
+              await _diaryTryApplyPending();
+            }
+          } catch (_) {}
+          return;
+        } catch (e) {
+          lastMsg = e.message || String(e);
+          if (/stole it|auth-token/i.test(lastMsg) && attempt < 3) {
+            await new Promise(r => setTimeout(r, 500 + attempt * 250));
+          }
         }
-      } catch (_) {}
-    } catch (e) {
-      if (attempt < 3) { return _sbLoadCloud(attempt + 1); }
-      _sbSyncing = false; // 解锁
-      showToast('❌ 异常: ' + e.message, 'error');
+      }
+      _sbSyncing = false;
+      showToast('❌ 查询错误: ' + (lastMsg || '失败'), 'error');
+    })();
+    try {
+      await _sbCloudLoadPromise;
+    } finally {
+      _sbCloudLoadPromise = null;
     }
   }
 
@@ -3101,6 +3231,8 @@
       _renderUserArea(_sbUser);
 
       if (_sbUser) {
+        // 仅刷新 token 时不再次拉库，避免与 SIGNED_IN / 首次查询 抢 auth storage 锁
+        if (event === 'TOKEN_REFRESHED' && _sbLoaded) return;
         // 本地缓存属于其他用户时先清空，防止闪现
         const cachedUid = localStorage.getItem('sb_cached_uid');
         if (cachedUid && cachedUid !== _sbUser.id) {
@@ -3114,7 +3246,8 @@
         document.getElementById('appContent').style.display = '';
         render(); updateSummary();
         if (!_sbLoaded) {
-          await _sbLoadCloud();
+          await new Promise(r => setTimeout(r, 320));
+          if (_sbUser) await _sbLoadCloud();
         }
       } else {
         // 未登录：隐藏主内容，显示登录窗
@@ -3542,15 +3675,13 @@
       const confirmedTag = item.navConfirmed
         ? ' &nbsp;<span class="conf-badge">✓ 已出净值</span>'
         : (wNavDate ? ' &nbsp;<span style="color:var(--text-muted);font-size:11px;">净值 ' + fmtMD(wNavDate) + '</span>' : '');
-      const hasGsz = !item.navConfirmed && item.gsz !== null && item.gztime;
+      const hasGsz = !item.navConfirmed && item.gsz !== null && !isNaN(item.gsz);
       const _preMarketW = !item.navConfirmed && isPreMarketNow();
       const meta = _preMarketW
         ? ' &nbsp;<span class="premkt-badge">盘前休市</span>'
         : hasGsz ? ' &nbsp;<span class="est-badge">盘中估值</span>' : '';
 
-      const todayStrW = getTodayStr();
-      const hasTodayDataW = item.navConfirmed ||
-        (item.gztime && item.gztime.slice(0, 10) === todayStrW);
+      const hasTodayDataW = _watchHasTodayNavData(item);
 
       let navCell = '--', changeCell = '<span class="neutral">--</span>', prevCell = '--';
       if (item.loading) {
@@ -3591,16 +3722,12 @@
   let _fundSortDesc = true;
 
   function _getFundSortValue(f, key) {
-    const todayStr = getTodayStr();
-    const hasTodayData = f.navConfirmed || (f.gztime && f.gztime.slice(0, 10) === todayStr);
+    const hasTodayData = _fundHasTodayNavData(f);
     if (key === 'amount') return f.amount || 0;
     if (key === 'gszzl') return hasTodayData ? (parseFloat(f.gszzl) || 0) : 0;
     if (key === 'todayProfit') {
-      if (!f.prevNav || !hasTodayData) return 0;
       const currentNav = f.navConfirmed ? f.confirmedNav : f.gsz;
-      const costNav = f.costNav || f.prevNav;
-      const shares = f.amount / costNav;
-      return (currentNav - f.prevNav) * shares;
+      return _todayProfitYuan(f, currentNav, hasTodayData);
     }
     if (key === 'accum' || key === 'accumRate') {
       const costNav = f.costNav || f.prevNav;
@@ -3750,10 +3877,13 @@
       let prevNavCell, navCell, changeCell, profitCell, accumCell, accumRateCell;
       const sk = '<span class="skel"></span>';
 
+      const hasPrice = f.navConfirmed
+        ? (f.confirmedNav != null && !isNaN(f.confirmedNav))
+        : (f.gsz != null && !isNaN(f.gsz));
       if (f.loading) {
         prevNavCell = sk; navCell = sk; changeCell = sk;
         profitCell = sk; accumCell = sk; accumRateCell = sk;
-      } else if (f.error || f.gsz === null || f.prevNav === null) {
+      } else if (f.error || f.prevNav === null || !hasPrice) {
         const errTag = f.error
           ? '<span style="color:var(--profit);font-size:12px;">获取失败</span>'
           : '<span class="neutral">--</span>';
@@ -3765,14 +3895,10 @@
       } else {
         const currentNav  = f.navConfirmed ? f.confirmedNav : f.gsz;
         const costNav     = f.costNav || f.prevNav;
-        const shares      = f.amount / costNav;
 
-        // 只有今天的数据才显示今日盈亏/涨跌幅，开盘前 gztime 是昨天则显示 --/0
-        const todayStr      = getTodayStr();
-        const hasTodayData  = f.navConfirmed ||
-          (f.gztime && f.gztime.slice(0, 10) === todayStr);
-        const todayProfit   = (f.prevNav && hasTodayData)
-          ? (currentNav - f.prevNav) * shares : 0;
+        // 今日行情：兼容 gztime 无年份、或仅有 jzrq===今日、或接口省略 gztime
+        const hasTodayData  = _fundHasTodayNavData(f);
+        const todayProfit   = _todayProfitYuan(f, currentNav, hasTodayData);
         const todayGszzl    = hasTodayData ? f.gszzl : null;
 
         // 累计收益：持仓份额 × (参考净值 − 成本净值)
@@ -3783,7 +3909,8 @@
           ? f.holdingShares : (f.amount / (costBasisNav || costNav));
         const accumProfit   = costBasisNav ? (accumShares * (navForAccum - costBasisNav)) : 0;
 
-        const cls   = todayGszzl > 0 ? 'profit' : todayGszzl < 0 ? 'loss' : 'neutral';
+        const pillCls  = todayGszzl > 0 ? 'profit' : todayGszzl < 0 ? 'loss' : 'neutral';
+        const profitCls = todayProfit > 0 ? 'profit' : todayProfit < 0 ? 'loss' : 'neutral';
         const sign  = (todayGszzl !== null && todayGszzl >= 0) ? '+' : '';
         const tSign = todayProfit >= 0 ? '+' : '';
         const aSign = accumProfit >= 0 ? '+' : '';
@@ -3792,10 +3919,10 @@
         prevNavCell = f.prevNav ? fmt(f.prevNav, 4) : '--';
         navCell     = hasTodayData ? fmt(currentNav, 4) : '--';
         changeCell  = todayGszzl !== null
-          ? '<span class="change-pill ' + cls + '">' + sign + fmt(todayGszzl, 2) + '%</span>'
+          ? '<span class="change-pill ' + pillCls + '">' + sign + fmt(todayGszzl, 2) + '%</span>'
           : '<span class="change-pill neutral">--</span>';
         profitCell  = hasTodayData
-          ? '<span class="' + cls + '">' + tSign + fmt(todayProfit, 2) + '</span>'
+          ? '<span class="' + profitCls + '">' + tSign + fmt(todayProfit, 2) + '</span>'
           : '<span class="neutral">0.00</span>';
         accumCell   = '<span class="' + aCls + '">' + aSign + fmt(accumProfit, 2) + '</span>';
         const costTotal = costBasisNav ? (accumShares * costBasisNav) : 0;
@@ -3887,30 +4014,24 @@
     let yesterdayValue = 0;
     funds.forEach(f => {
       const currentNav = f.navConfirmed ? f.confirmedNav : f.gsz;
-      const costNav = f.costNav || f.prevNav;
-      const hasTodayData = f.navConfirmed ||
-        (f.gsz !== null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === todayStr);
-      // 与表格「今日盈亏」一致：始终用 持仓金额 / costNav 推算份额（编辑金额后汇总才与各行对齐）
-      const shares = (costNav && f.amount) ? f.amount / costNav : 0;
-      if (hasTodayData && f.prevNav && currentNav !== null && !isNaN(currentNav) && shares > 0) {
-        todayProfitSum += (currentNav - f.prevNav) * shares;
-        yesterdayValue += f.prevNav * shares;
+      const hasTodayData = _fundHasTodayNavData(f);
+      const effS = _effSharesForDailyPnl(f, currentNav);
+      if (hasTodayData && f.prevNav && currentNav !== null && !isNaN(currentNav) && effS > 0) {
+        todayProfitSum += _todayProfitYuan(f, currentNav, hasTodayData);
+        yesterdayValue += f.prevNav * effS;
       }
     });
     const profit = todayProfitSum;
     const change = yesterdayValue > 0 ? (profit / yesterdayValue) * 100 : 0;
 
-    const hasLive = funds.some(f => !f.loading && (
-      f.navConfirmed || (f.gsz !== null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === todayStr)
-    ));
+    const hasLive = funds.some(f => !f.loading && _fundHasTodayNavData(f));
 
     // 累计收益：每只基金用持仓成本净值算份额 × 参考净值 − 持仓金额
     const totalAccum = funds.reduce((s, f) => {
       const currentNav   = f.navConfirmed ? f.confirmedNav : f.gsz;
       const costNav      = f.costNav || f.prevNav;
       const costBasisNav = (f.costBasisLocked && f.costBasis !== null && f.costBasis > 0) ? f.costBasis : costNav;
-      const hasTodayData = f.navConfirmed ||
-        (f.gsz !== null && !isNaN(f.gsz) && f.gztime && f.gztime.slice(0, 10) === getTodayStr());
+      const hasTodayData = _fundHasTodayNavData(f);
       const navForAccum  = hasTodayData ? currentNav : (f.prevNav || currentNav);
       const effShares    = (f.holdingShares !== null && f.holdingShares > 0)
         ? f.holdingShares : (f.amount / (costBasisNav || costNav));
