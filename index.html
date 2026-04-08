@@ -4706,12 +4706,9 @@
         if (autoLabel) autoLabel.textContent = '';
         return;
       }
-      // 只在基金大盘 tab 可见时静默刷新（不清除缓存，缓存到期时自然重拉）
-      const tab4 = document.getElementById('tab4-content');
-      if (tab4 && tab4.style.display !== 'none') {
-        _mrCache = null; _mrCacheTime = 0;
-        _mrLoad().then(() => _mrUpdateRefreshTime());
-      }
+      // 开盘时段后台也刷新：勿要求当前在「基金大盘」Tab（否则切走即不拉取，点回来仍见旧缓存）
+      _mrCache = null; _mrCacheTime = 0;
+      _mrLoad().then(() => _mrUpdateRefreshTime());
     }, 10 * 60 * 1000); // 10 分钟
 
     // 每分钟更新倒计时提示
