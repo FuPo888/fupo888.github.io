@@ -5,27 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>养基必涨</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" />
   <style>
     :root {
-      --bg-primary:   #0d0f1a;
-      --bg-secondary: #141628;
-      --bg-card:      #181b2e;
-      --bg-input:     #1e2138;
-      --border:       #272b48;
-      --border-light: #303560;
+      --bg-primary:   #000000;
+      /* 模块卡片：中性灰（替代原偏深蓝），叠在纯黑底上 */
+      --bg-secondary: #1e1e22;
+      --bg-card:      #2a2a2f;
+      --bg-input:     #323238;
+      --border:       #3d3d44;
+      --border-light: #4a4a52;
       --text-primary:   #e6e8f4;
       --text-secondary: #8b90b8;
       --text-muted:     #4e527a;
-      --accent:       #5571f5;
-      --accent-glow:  rgba(85, 113, 245, 0.35);
+      --accent:       #ff1493;
+      --accent-hover: #ff4d9e;
+      --accent-glow:  rgba(255, 20, 147, 0.38);
       --profit:       #f04040;
       --profit-bg:    rgba(240, 64, 64, 0.10);
       --loss:         #22c45e;
       --loss-bg:      rgba(34, 196, 94, 0.10);
       --neutral:      #8b90b8;
+      /* 板块标签（CPO 等） */
+      --tag-slate-bg:    #283448;
+      --tag-slate-hover: #324458;
+      --tag-slate-text:  #a6bcda;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      background: var(--bg-primary);
+    }
 
     body {
       background: var(--bg-primary);
@@ -76,37 +87,49 @@
     }
     .logo-icon {
       width: 44px; height: 44px;
-      background: linear-gradient(135deg, #5571f5, #a78bfa);
+      background: linear-gradient(135deg, #ff1493, #ff69b4);
       border-radius: 12px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
     .logo-icon svg { width: 24px; height: 24px; }
     .logo-text h1 {
-      font-size: 22px; font-weight: 700;
-      background: linear-gradient(135deg, #8ba4ff, #c4b5fd);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 22px;
+      font-weight: 700;
+      color: #fd69cf;
     }
     .logo-text p {
-      font-size: 12px; color: var(--text-muted); margin-top: 3px; letter-spacing: 0.5px;
+      font-size: 12px;
+      color: #ffd8ed;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
     }
     .header-right { text-align: right; }
     .update-time {
-      font-size: 13px; color: var(--text-secondary);
+      font-size: 13px; color: #ffd8ed;
       line-height: 1.6;
     }
-    .update-time span { color: var(--text-primary); }
+    .update-time span { color: #ffd8ed; }
+    /* 与「盘中实时估值」.nav-mode-badge.live 同款：淡粉底、#fd69cf 字与描边、圆点 */
     .auto-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(85, 113, 245, 0.12);
-      border: 1px solid rgba(85, 113, 245, 0.28);
-      border-radius: 20px; padding: 4px 12px;
-      font-size: 12px; color: var(--accent); margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(253, 105, 207, 0.12);
+      border: 1px solid #fd69cf;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fd69cf;
+      margin-top: 8px;
     }
-    .pulse-dot {
-      width: 6px; height: 6px;
-      background: var(--accent); border-radius: 50%;
+    .auto-badge .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background: #fd69cf;
+      border-radius: 50%;
+      flex-shrink: 0;
       animation: pulse 2s ease-in-out infinite;
     }
     @keyframes pulse {
@@ -114,9 +137,11 @@
       50%       { opacity: 0.4; transform: scale(0.8); }
     }
 
-    /* ── Section card ── */
+    /* ── Section card（与 .table-wrapper 同款半透明底） ── */
     .card {
-      background: var(--bg-card);
+      background: rgba(42, 42, 47, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 20px 24px;
@@ -133,7 +158,7 @@
     .section-title::before {
       content: '';
       display: inline-block; width: 3px; height: 14px;
-      background: linear-gradient(180deg, #5571f5, #a78bfa);
+      background: linear-gradient(180deg, #ff1493, #ff69b4);
       border-radius: 2px;
     }
 
@@ -181,20 +206,54 @@
 
     .btn-primary {
       background: var(--accent); color: #fff;
+      border-radius: 999px;
+      font-weight: 700;
     }
     .btn-primary:not(:disabled):hover {
-      background: #6b85ff;
+      background: var(--accent-hover);
       transform: translateY(-1px);
       box-shadow: 0 6px 18px var(--accent-glow);
     }
 
+    /* 与顶栏方圆角一致；工具栏内由 .actions-bar .btn-refresh 再压扁、小字 */
     .btn-refresh {
-      background: linear-gradient(135deg, #5571f5, #a78bfa);
-      color: #fff; padding: 10px 28px;
+      background: var(--bg-input);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: none;
     }
     .btn-refresh:not(:disabled):hover {
-      opacity: 0.9; transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(85, 113, 245, 0.45);
+      filter: brightness(1.08);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    /* 「刷新估值 / 刷新行情 / 基金大盘刷新」：纯色底，去掉系统 button 默认的暗部渐变感 */
+    #refreshBtn,
+    #refreshWatchBtn,
+    #mrRefreshBtn,
+    #sectorRefreshBtn {
+      background-color: #fd69cf;
+      background-image: none;
+      color: #fff;
+      border: none;
+      box-shadow: none;
+      filter: none;
+    }
+    .actions-bar #refreshBtn,
+    .actions-bar #refreshWatchBtn,
+    #tab4-content .mr-wrap #mrRefreshBtn,
+    #tab5-content .mr-wrap #sectorRefreshBtn {
+      border: 1px solid #fd69cf;
+    }
+    .actions-bar button#refreshBtn:not(:disabled):hover,
+    .actions-bar button#refreshWatchBtn:not(:disabled):hover,
+    #tab4-content .mr-wrap button#mrRefreshBtn:not(:disabled):hover,
+    #tab5-content .mr-wrap button#sectorRefreshBtn:not(:disabled):hover {
+      filter: brightness(0.93);
     }
 
     .btn-remove {
@@ -217,26 +276,31 @@
     .btn-edit:hover {
       border-color: var(--accent);
       color: var(--accent);
-      background: rgba(85,113,245,0.08);
+      background: rgba(255,20,147,0.1);
     }
     .btn-confirm {
       background: var(--accent);
       border: none;
       color: #fff;
       padding: 5px 12px; font-size: 12px;
+      border-radius: 999px;
+      font-weight: 600;
     }
-    .btn-confirm:hover { background: #6b85ff; }
+    .btn-confirm:hover { background: var(--accent-hover); }
     .btn-suggest {
-      background: rgba(124,97,255,0.18);
-      border: 1px solid rgba(124,97,255,0.35);
-      color: #a78bfa;
+      background: linear-gradient(135deg, #ff1493, #ff5da0);
+      border: none;
+      color: #fff;
       padding: 5px 10px; font-size: 12px;
+      font-weight: 600;
+      border-radius: 999px;
+      box-shadow: 0 1px 8px rgba(255, 20, 147, 0.3);
     }
-    .btn-suggest:hover { background: rgba(124,97,255,0.32); }
-    .btn-suggest.buy  { background: rgba(34,196,94,0.15);  border-color: rgba(34,196,94,0.4);  color: var(--profit); }
-    .btn-suggest.buy:hover  { background: rgba(34,196,94,0.28); }
-    .btn-suggest.sell { background: rgba(239,68,68,0.15);  border-color: rgba(239,68,68,0.4);  color: var(--loss); }
-    .btn-suggest.sell:hover { background: rgba(239,68,68,0.28); }
+    .btn-suggest:hover { filter: brightness(1.08); }
+    .btn-suggest.buy  { background: rgba(34,196,94,0.15);  border: 1px solid rgba(34,196,94,0.4);  color: var(--profit); box-shadow: none; }
+    .btn-suggest.buy:hover  { background: rgba(34,196,94,0.28); filter: none; }
+    .btn-suggest.sell { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.4);  color: var(--loss); box-shadow: none; }
+    .btn-suggest.sell:hover { background: rgba(239,68,68,0.28); filter: none; }
     .suggest-modal-box { width: 480px; max-width: calc(100vw - 32px); display:flex; flex-direction:column; max-height:90vh; }
     .suggest-modal-box .modal-body { overflow-y:auto; flex:1; padding-bottom:16px; }
     .sg-info { background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:13px; }
@@ -270,7 +334,72 @@
     }
     .inline-edit-input::-webkit-outer-spin-button,
     .inline-edit-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-    .op-btns { display: flex; gap: 6px; justify-content: center; }
+    .op-btns {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* 持仓表操作列：固定 51×20px（11px 二字按钮约需此宽；若原意15px 宽将无法排字）；字号不变 */
+    #tab1-content .op-btns .btn-suggest,
+    #tab1-content .op-btns .btn-edit,
+    #tab1-content .op-btns .btn-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 51px;
+      height: 20px;
+      min-width: 51px;
+      min-height: 20px;
+      max-width: 51px;
+      max-height: 20px;
+      padding: 0;
+      background: var(--bg-input);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-weight: 600;
+      box-shadow: none;
+      font-size: 11px;
+      line-height: 1;
+    }
+    #tab1-content .op-btns .btn-suggest.buy,
+    #tab1-content .op-btns .btn-suggest.sell {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 51px;
+      height: 20px;
+      min-width: 51px;
+      min-height: 20px;
+      max-width: 51px;
+      max-height: 20px;
+      padding: 0;
+      line-height: 1;
+      background: var(--bg-input);
+      color: #fff;
+      border: none;
+      box-shadow: none;
+      font-size: 11px;
+    }
+    #tab1-content .op-btns .btn-suggest:hover,
+    #tab1-content .op-btns .btn-edit:hover,
+    #tab1-content .op-btns .btn-remove:hover {
+      background: var(--bg-input);
+      color: #fff;
+      border: none;
+      filter: brightness(1.12);
+    }
+    #tab1-content .op-btns .btn-suggest.buy:hover,
+    #tab1-content .op-btns .btn-suggest.sell:hover {
+      background: var(--bg-input);
+      color: #fff;
+      filter: brightness(1.12);
+    }
 
     /* ── Actions bar ── */
     .actions-bar {
@@ -278,13 +407,104 @@
       margin-bottom: 12px;
     }
     .fund-count {
-      font-size: 13px; color: var(--text-muted);
+      font-size: 13px; color: #ffd8ed;
     }
-    .fund-count span { color: var(--text-secondary); font-weight: 600; }
+    .fund-count span { color: #ffd8ed; font-weight: 600; }
+    #tab1-content .fund-count span {
+      color: #fd69cf;
+    }
+    #tab2-content .fund-count span {
+      color: #fd69cf;
+    }
 
+    /* 涨跌行情表「移除」：与持仓表建议/编辑/删除同款胶囊小钮 */
+    #tab2-content #watchTable .btn-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 51px;
+      height: 20px;
+      min-width: 51px;
+      min-height: 20px;
+      max-width: 51px;
+      max-height: 20px;
+      padding: 0;
+      background: var(--bg-input);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font-weight: 600;
+      box-shadow: none;
+      font-size: 11px;
+      line-height: 1;
+    }
+    #tab2-content #watchTable .btn-remove:hover {
+      background: var(--bg-input);
+      color: #fff;
+      border: none;
+      filter: brightness(1.12);
+    }
+
+    /* 持仓 / 行情工具栏：同款方圆角、略扁；统一 min-height + 盒模型，避免隐私按钮因描边/发光显得更高 */
+    .actions-bar .nav-mode-badge,
+    .actions-bar .privacy-toggle,
+    .actions-bar .btn-add-open,
+    .actions-bar .btn-refresh,
+    #tab4-content .mr-toolbar-right .nav-mode-badge,
+    #tab4-content .mr-toolbar-right #mrRefreshBtn,
+    #tab5-content .mr-toolbar-right .nav-mode-badge,
+    #tab5-content .mr-toolbar-right #sectorRefreshBtn {
+      box-sizing: border-box;
+      min-height: 26px;
+      padding: 0 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .actions-bar .privacy-toggle {
+      gap: 5px;
+    }
+    .actions-bar .privacy-toggle svg {
+      width: 10px;
+      height: 10px;
+    }
+    /* 白钮：描边与底色同为白，避免深灰圈边 */
+    .actions-bar .btn-add-open {
+      border: 1px solid #ffffff;
+    }
+    .actions-bar .nav-mode-badge.estimated,
+    #tab4-content .mr-toolbar-right .nav-mode-badge.estimated,
+    #tab5-content .mr-toolbar-right .nav-mode-badge.estimated {
+      border: 1px solid transparent;
+    }
+    .actions-bar .btn-refresh {
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    /* 白钮 / 刷新：统一系统外观与定高，避免描边或 UA button 样式导致与相邻按钮错一像素 */
+    .actions-bar .btn.btn-add-open,
+    .actions-bar .btn.btn-refresh,
+    #tab4-content .mr-toolbar-right button#mrRefreshBtn,
+    #tab5-content .mr-toolbar-right button#sectorRefreshBtn {
+      appearance: none;
+      -webkit-appearance: none;
+      margin: 0;
+      align-self: center;
+      height: 26px;
+      min-height: 26px;
+      max-height: 26px;
+      box-sizing: border-box;
+    }
     /* ── Table ── */
     .table-wrapper {
-      background: var(--bg-card);
+      /* 略透明，让底层黑底透出，与操作列浅灰按钮拉开层次 */
+      background: rgba(42, 42, 47, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       border: 1px solid var(--border);
       border-radius: 16px;
       overflow: hidden;
@@ -302,8 +522,9 @@
     thead { background: var(--bg-secondary); }
     thead th {
       padding: 13px 16px;
-      font-size: 11px; font-weight: 700;
-      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
       text-transform: uppercase; letter-spacing: 0.7px;
       white-space: nowrap; text-align: center;
       position: relative;
@@ -334,7 +555,7 @@
     }
 
     tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
-    tbody tr:hover { background: rgba(85, 113, 245, 0.04); }
+    tbody tr:hover { background: rgba(255, 20, 147, 0.04); }
 
     tbody td {
       padding: 15px 16px;
@@ -361,45 +582,83 @@
       display: none;
       position: fixed;
       z-index: 9999;
-      padding: 4px 10px;
-      border-radius: 20px;
+      padding: 5px 12px;
+      border-radius: 8px;
       font-size: 12px; font-weight: 600;
-      background: rgba(124,97,255,0.18);
-      color: #a78bfa;
-      border: 1px solid rgba(124,97,255,0.35);
+      background: var(--tag-slate-bg);
+      color: var(--tag-slate-text);
+      border: none;
+      box-shadow: none;
       white-space: nowrap;
       pointer-events: none;
       backdrop-filter: blur(6px);
     }
     .fund-meta {
-      font-size: 11px; color: var(--text-muted); margin-top: 3px;
+      font-size: 10px;
+      color: #ffd8ed;
+      margin-top: 3px;
+    }
+    /* 脚本里曾用内联 var(--text-muted) 盖住父级色，统一用此类 */
+    .fund-meta-note {
+      color: #ffd8ed;
+      font-size: 10px;
     }
     .fund-tag {
-      display: inline-block; padding: 1px 7px; border-radius: 20px;
-      font-size: 11px; font-weight: 600; cursor: pointer;
-      background: rgba(124,97,255,0.18); color: #a78bfa;
-      border: 1px solid rgba(124,97,255,0.35);
-      white-space: nowrap; flex-shrink: 0;
-      transition: background 0.15s;
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--tag-slate-bg);
+      color: var(--tag-slate-text);
+      border: none;
+      box-shadow: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
     }
-    .fund-tag:hover { background: rgba(124,97,255,0.32); }
+    .fund-tag:hover { background: var(--tag-slate-hover); color: #b8d4ec; }
     .fund-tag-add {
-      display: inline-block; padding: 1px 7px; border-radius: 20px;
-      font-size: 11px; cursor: pointer; flex-shrink: 0;
-      color: var(--text-muted); border: 1px dashed rgba(255,255,255,0.15);
-      white-space: nowrap; transition: all 0.15s;
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      cursor: pointer;
+      flex-shrink: 0;
+      color: var(--text-muted);
+      border: 1px dashed rgba(160, 175, 195, 0.28);
+      white-space: nowrap;
+      transition: all 0.15s;
     }
-    .fund-tag-add:hover { color: #a78bfa; border-color: rgba(124,97,255,0.4); }
+    .fund-tag-add:hover {
+      color: var(--tag-slate-text);
+      border-color: rgba(160, 175, 195, 0.45);
+      background: rgba(44, 51, 63, 0.35);
+    }
     .cb-value {
-      cursor: pointer; color: var(--text-secondary);
-      border-bottom: 1px dashed rgba(255,255,255,0.2);
+      cursor: pointer;
+      color: #ffd8ed;
+      border-bottom: 1px dashed rgba(255, 216, 237, 0.45);
     }
-    .cb-value:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.5); }
+    .cb-value:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+    .cb-value-hint {
+      font-size: 10px;
+      color: rgba(255, 216, 237, 0.9);
+    }
     .cb-empty {
-      cursor: pointer; font-size: 12px;
-      color: var(--text-muted); border-bottom: 1px dashed rgba(255,255,255,0.12);
+      cursor: pointer;
+      font-size: 12px;
+      color: #ffd8ed;
+      border-bottom: 1px dashed rgba(255, 216, 237, 0.35);
     }
-    .cb-empty:hover { color: #a78bfa; border-color: rgba(124,97,255,0.4); }
+    .cb-empty:hover {
+      color: #fff;
+      border-color: rgba(255, 216, 237, 0.65);
+    }
 
     .profit { color: var(--profit); }
     .loss   { color: var(--loss);   }
@@ -497,25 +756,45 @@
     }
     .nav-hint svg { flex-shrink: 0; }
 
-    /* ── Tab bar ── */
+    /* ── Tab bar：无整条底栏；未选透明底；选中为扁方圆角块（非全圆胶囊） ── */
     .tab-bar {
-      display: flex; gap: 4px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px; padding: 4px;
-      width: fit-content; margin-bottom: 0;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: transparent;
+      border: none;
+      padding: 0;
+      width: fit-content;
+      margin-bottom: 0;
     }
-    /* tab-bar 下方间距由 sticky wrapper 的 padding-bottom 控制 */
     .tab-btn {
-      padding: 8px 28px; border: none; border-radius: 9px;
-      font-size: 14px; font-weight: 600; cursor: pointer;
-      background: transparent; color: var(--text-muted);
-      transition: all 0.18s;
+      padding: 7px 16px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: #8b909e;
+      transition: color 0.18s, background 0.18s, border-color 0.18s;
+      flex-shrink: 0;
     }
-    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn:hover:not(.active) {
+      color: #b8bcc8;
+    }
     .tab-btn.active {
-      background: var(--accent); color: #fff;
-      box-shadow: 0 2px 10px var(--accent-glow);
+      background: rgba(42, 42, 47, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #fff;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: none;
+    }
+    .tab-btn:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.35);
+      outline-offset: 2px;
     }
 
     /* ── P&L Calendar ── */
@@ -605,24 +884,35 @@
     .rank-badge.r1 { background: rgba(255,193,7,0.18); color: #ffc107; }
     .rank-badge.r2 { background: rgba(176,190,197,0.18); color: #b0bec5; }
     .rank-badge.r3 { background: rgba(161,101,82,0.18); color: #c1805a; }
+    /* 涨跌行情排行：第 4 名及以后数字色，与基金大盘一致 */
+    #tab2-content .rank-badge:not(.r1):not(.r2):not(.r3) {
+      color: #ffd8ed;
+    }
     .holding-tag {
       display: inline-block; padding: 1px 7px; border-radius: 4px;
       font-size: 11px; font-weight: 600;
-      background: rgba(85,113,245,0.14); color: var(--accent);
+      background: rgba(255,20,147,0.14); color: var(--accent);
       margin-left: 6px; vertical-align: middle;
     }
     .watch-form { display: flex; gap: 10px; align-items: flex-end; }
 
-    /* ── Add button ── */
+    /* ── 工具栏「添加基金 / 操作日记 / 添加监控」：白底黑字；细部由 .actions-bar 收紧 ── */
     .btn-add-open {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-secondary);
-      padding: 9px 18px; font-size: 14px;
+      background: #ffffff;
+      border: none;
+      color: #000000;
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 10px;
+      box-shadow: none;
     }
     .btn-add-open:hover {
-      border-color: var(--accent); color: var(--accent);
-      background: rgba(85,113,245,0.08);
+      background: #f0f0f0;
+      color: #000000;
+    }
+    .actions-bar .btn-add-open:hover {
+      border-color: #f0f0f0;
     }
 
     /* ── Modal ── */
@@ -675,36 +965,38 @@
       font-size: 12px; font-weight: 600;
     }
     .nav-mode-badge.estimated {
-      background: rgba(139,144,184,0.12);
-      border: 1px solid rgba(139,144,184,0.25);
-      color: var(--text-muted);
+      /* 与板块标签（CPO 等）同色系 */
+      background: var(--tag-slate-bg);
+      border: none;
+      color: var(--tag-slate-text);
     }
+    /* 盘中实时估值：#fd69cf 字/描边/圆点，淡粉底 */
     .nav-mode-badge.live {
-      background: rgba(85, 113, 245, 0.12);
-      border: 1px solid rgba(85, 113, 245, 0.35);
-      color: var(--accent);
+      background: rgba(253, 105, 207, 0.12);
+      border: 1px solid #fd69cf;
+      color: #fd69cf;
     }
     .nav-mode-badge.live .badge-dot {
-      background: var(--accent);
+      background: #fd69cf;
       animation: pulse 2s ease-in-out infinite;
     }
     .nav-mode-badge.confirmed {
-      background: rgba(34,196,94,0.12);
-      border: 1px solid rgba(34,196,94,0.35);
-      color: var(--loss);
+      background: rgba(253, 105, 207, 0.12);
+      border: 1px solid #fd69cf;
+      color: #fd69cf;
     }
     .nav-mode-badge .badge-dot {
       width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
     }
-    .nav-mode-badge.estimated .badge-dot { background: var(--text-muted); }
+    .nav-mode-badge.estimated .badge-dot { background: var(--tag-slate-text); }
     .nav-mode-badge.confirmed .badge-dot {
-      background: var(--loss);
+      background: #fd69cf;
       animation: pulse 2s ease-in-out infinite;
     }
     .est-badge {
       display: inline-flex; align-items: center; gap: 3px;
-      background: rgba(85,113,245,0.12);
-      border: 1px solid rgba(85,113,245,0.3);
+      background: rgba(255,20,147,0.12);
+      border: 1px solid rgba(255,20,147,0.3);
       color: var(--accent);
       border-radius: 10px;
       font-size: 10px;
@@ -723,9 +1015,9 @@
     }
     .conf-badge {
       display: inline-flex; align-items: center; gap: 3px;
-      background: rgba(240,165,0,0.12);
-      border: 1px solid rgba(240,165,0,0.35);
-      color: #f0a500;
+      background: rgba(253, 105, 207, 0.12);
+      border: 1px solid #fd69cf;
+      color: #fd69cf;
       border-radius: 10px;
       font-size: 10px;
       padding: 1px 6px;
@@ -758,17 +1050,66 @@
     }
     .arr:hover { color: var(--text-primary); }
     .arr.active { color: var(--accent); }
-
-    /* ── 隐私模式 ── */
-    .privacy-toggle {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: none; border: 1px solid var(--border);
-      border-radius: 6px; padding: 4px 10px; cursor: pointer;
-      color: var(--text-muted); font-size: 12px; transition: all 0.15s;
+    /* 仅排序箭头缩小；列标题字号由 thead th 控制，互不影响 */
+    thead th .sort-arrows {
+      font-size: 7px;
     }
-    .privacy-toggle:hover { border-color: var(--border-light); color: var(--text-primary); }
-    .privacy-toggle.on { border-color: var(--accent); color: var(--accent); }
-    .privacy-toggle svg { width: 14px; height: 14px; }
+    thead th .sort-arrows .arr {
+      font-size: inherit;
+      color: #fff;
+    }
+    thead th .sort-arrows .arr:hover { color: rgba(255, 255, 255, 0.85); }
+    thead th .sort-arrows .arr.active { color: #fff; }
+
+    /* ── 隐私模式：深紫玻璃感 + 洋红外发光；工具栏内 .actions-bar 再压扁 ── */
+    .privacy-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(74, 35, 74, 0.78);
+      border: 1px solid #a680a6;
+      border-radius: 10px;
+      padding: 5px 12px;
+      cursor: pointer;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      /* blur 收小，减少上下外扩造成的「比旁边高一截」的错觉 */
+      box-shadow:
+        0 0 8px rgba(255, 0, 200, 0.32),
+        0 0 16px rgba(255, 20, 147, 0.14);
+    }
+    .privacy-toggle:hover {
+      background: rgba(88, 44, 88, 0.88);
+      border-color: #c49bc4;
+      color: #fff;
+      box-shadow:
+        0 0 10px rgba(255, 0, 220, 0.38),
+        0 0 18px rgba(255, 60, 180, 0.16);
+    }
+    .privacy-toggle.on {
+      background: rgba(82, 38, 88, 0.9);
+      border-color: #d4a8e0;
+      color: #fff;
+      box-shadow:
+        0 0 12px rgba(255, 0, 255, 0.4),
+        0 0 22px rgba(255, 40, 200, 0.2);
+    }
+    .privacy-toggle svg {
+      width: 11px;
+      height: 11px;
+      flex-shrink: 0;
+    }
+    .privacy-toggle .privacy-ico-fill {
+      display: none;
+    }
+    .privacy-toggle.on .privacy-ico-line {
+      display: none;
+    }
+    .privacy-toggle.on .privacy-ico-fill {
+      display: block;
+    }
     .privacy-dropdown {
       position: absolute; top: 100%; right: 0; margin-top: 4px;
       background: var(--bg-card); border: 1px solid var(--border-light);
@@ -821,14 +1162,18 @@
     .mr-no.r1  { background:rgba(255,193,7,.18);  color:#ffc107; }
     .mr-no.r2  { background:rgba(180,180,180,.18); color:#b0b0b0; }
     .mr-no.r3  { background:rgba(180,100,40,.18);  color:#cd7f32; }
+    /* 第 4 名及以后：数字用浅粉，与金银铜区分 */
+    #tab4-content .mr-no:not(.r1):not(.r2):not(.r3) {
+      color: #ffd8ed;
+    }
     .mr-info   { flex:1; min-width:0; overflow:hidden; }
     .mr-name   { font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .mr-meta   { display:flex; align-items:center; gap:6px; margin-top:3px; }
-    .mr-sector { font-size:10px; color:var(--accent); background:rgba(85,113,245,0.12); padding:1px 6px; border-radius:4px; }
+    .mr-sector { font-size:10px; color:var(--accent); background:rgba(255,20,147,0.12); padding:1px 6px; border-radius:4px; }
     .mr-code   { font-size:11px; color:var(--text-muted); }
     .mr-badge  { display:inline-block; padding:1px 6px; border-radius:4px; font-size:10px; font-weight:600; }
-    .mr-badge.eq  { background:rgba(85,113,245,.15);  color:#7b9ff5; }
-    .mr-badge.mx  { background:rgba(124,97,255,.15);  color:#a78bfa; }
+    .mr-badge.eq  { background:rgba(255,20,147,.15);  color:#ff9ec8; }
+    .mr-badge.mx  { background:rgba(255,20,147,.15);  color:#ffb3d9; }
     .mr-badge.bd  { background:rgba(34,196,94,.12);   color:#4ade80; }
     .mr-badge.idx { background:rgba(245,158,11,.15);  color:#f59e0b; }
     .mr-badge.ot  { background:var(--bg-input);       color:var(--text-muted); }
@@ -838,12 +1183,124 @@
     .mr-action { font-size:11px; color:var(--accent); cursor:pointer; }
     .mr-action:hover { text-decoration:underline; }
     .mr-action.muted { color:var(--text-muted); cursor:default; }
-    .mr-action-suggest { font-size:11px; color:#a78bfa; cursor:pointer; }
+    .mr-action-suggest { font-size:11px; color:#ffb3d9; cursor:pointer; }
     .mr-action-suggest:hover { text-decoration:underline; }
     .mr-action-suggest.buy  { color: var(--profit); }
     .mr-action-suggest.sell { color: var(--loss); }
     .mr-empty  { text-align:center; color:var(--text-muted); padding:48px 0; font-size:13px; }
     .mr-foot   { margin-top:12px; padding-top:10px; border-top:1px solid var(--border); font-size:11px; color:var(--text-muted); text-align:right; }
+
+    /* 基金大盘 · 标题与说明（与顶栏未选中 Tab 灰色一致 #8b909e） */
+    #tab4-content .section-title {
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    #tab4-content .section-title::before {
+      background: #fd69cf;
+      background-image: none;
+    }
+    #tab4-content .mr-hint {
+      color: #8b909e;
+    }
+    #tab4-content #mrLastRefresh {
+      color: #8b909e;
+      font-size: 11px;
+    }
+    #tab4-content #mrAutoLabel {
+      color: #fd69cf;
+      font-size: 11px;
+    }
+    #tab4-content .mr-actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    /* 基金大盘 · 工具栏右侧：与「我的持仓」nav-mode-badge 对齐 */
+    #tab4-content .mr-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    /* 添加监控 / 已在监控、已在持仓 */
+    #tab4-content .mr-action:not(.muted) {
+      color: #fd69cf;
+    }
+    #tab4-content .mr-action.muted {
+      color: #8b909e;
+    }
+    /* 盘中估值 / 历史净值（仅本 Tab，不影响其它页 est-badge） */
+    #tab4-content .est-badge {
+      background: rgba(253, 105, 207, 0.12);
+      border: 1px solid #fd69cf;
+      color: #fd69cf;
+    }
+    #tab4-content .est-badge::before {
+      background: #fd69cf;
+    }
+    #tab4-content .hist-badge {
+      background: rgba(139, 144, 158, 0.12);
+      border: 1px solid #8b909e;
+      color: #8b909e;
+    }
+    #tab4-content .fund-name,
+    #tab4-content .fund-name-text {
+      color: #fff;
+    }
+
+    /* 板块行情：标题/副标题/工具栏与基金大盘一致 */
+    #tab5-content .section-title {
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    #tab5-content .section-title::before {
+      background: #fd69cf;
+      background-image: none;
+    }
+    #tab5-content .mr-hint {
+      color: #8b909e;
+    }
+    #tab5-content .sector-name {
+      color: #fff;
+    }
+    #tab5-content .sector-count,
+    #tab5-content .sector-arrow {
+      color: #ffd8ed;
+    }
+    #tab5-content .sector-fund-name {
+      color: #fff;
+    }
+    #tab5-content .sector-fund-name .sector-fund-code {
+      color: #8b909e;
+    }
+    #tab5-content .sector-fund-nav {
+      color: #8b909e;
+    }
+    #tab5-content #sectorLastRefresh {
+      color: #8b909e;
+      font-size: 11px;
+    }
+    #tab5-content #sectorAutoLabel {
+      color: #fd69cf;
+      font-size: 11px;
+    }
+    #tab5-content .mr-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    #tab5-content .sector-fund-action:not(.muted) {
+      color: #fd69cf;
+      cursor: pointer;
+    }
+    #tab5-content .sector-fund-action.muted {
+      color: #8b909e;
+    }
 
     /* 板块行情 */
     .sector-row       { border-top:1px solid var(--border); cursor:pointer; transition:background .15s; }
@@ -864,7 +1321,7 @@
     .sector-fund-nav   { font-size:11px; color:var(--text-muted); min-width:52px; text-align:right; }
     .sector-fund-action  { font-size:11px; min-width:64px; text-align:center; }
     .sector-fund-action.muted { color:var(--text-muted); }
-    .sector-fund-suggest { font-size:11px; color:#a78bfa; cursor:pointer; white-space:nowrap; }
+    .sector-fund-suggest { font-size:11px; color:#ffb3d9; cursor:pointer; white-space:nowrap; }
     .sector-fund-suggest:hover { text-decoration:underline; }
     .sector-fund-suggest.buy  { color: var(--profit); }
     .sector-fund-suggest.sell { color: var(--loss); }
@@ -876,26 +1333,34 @@
   ══════════════════════════════════════ */
   .ai-fab {
     position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #5571f5 0%, #8b5cf6 100%);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: transparent;
     border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 20px rgba(85,113,245,0.45);
+    cursor: grab;
+    box-shadow: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
+    font-size: 28px;
+    line-height: 1;
     z-index: 2000;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, filter 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
   }
-  .ai-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(85,113,245,0.6); }
+  .ai-fab.ai-fab--dragging {
+    cursor: grabbing;
+    transition: none;
+    transform: none;
+    filter: none;
+  }
+  .ai-fab:not(.ai-fab--dragging):hover { transform: scale(1.08); filter: brightness(1.12); }
   .ai-fab .ai-fab-badge {
     position: absolute;
-    top: 2px; right: 2px;
+    top: 0; right: 0;
     width: 10px; height: 10px;
     background: var(--profit);
     border-radius: 50%;
@@ -906,8 +1371,8 @@
 
   .ai-chat-box {
     position: fixed;
-    right: 24px;
-    bottom: 86px;
+    left: 16px;
+    top: 16px;
     width: 380px;
     max-width: calc(100vw - 32px);
     height: 560px;
@@ -982,7 +1447,8 @@
     align-items: center;
     justify-content: center;
     font-size: 13px;
-    background: linear-gradient(135deg,#5571f5,#8b5cf6);
+    background: #fd69cf;
+    background-image: none;
   }
   .ai-msg.user .ai-msg-avatar { background: var(--bg-secondary); border: 1px solid var(--border-light); font-size: 11px; }
 
@@ -1001,8 +1467,8 @@
     border-top-left-radius: 4px;
   }
   .ai-msg.user .ai-msg-bubble {
-    background: rgba(85,113,245,0.2);
-    border: 1px solid rgba(85,113,245,0.35);
+    background: rgba(253, 105, 207, 0.22);
+    border: 1px solid rgba(253, 105, 207, 0.5);
     color: var(--text-primary);
     border-top-right-radius: 4px;
   }
@@ -1046,7 +1512,7 @@
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s, background 0.15s;
   }
-  .ai-quick-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(85,113,245,0.08); }
+  .ai-quick-btn:hover { border-color: #fd69cf; color: #fd69cf; background: rgba(253, 105, 207, 0.1); }
 
   .ai-chat-input-row {
     display: flex;
@@ -1070,13 +1536,14 @@
     max-height: 80px;
     transition: border-color 0.15s;
   }
-  .ai-chat-input:focus { border-color: var(--accent); }
+  .ai-chat-input:focus { border-color: #fd69cf; box-shadow: 0 0 0 2px rgba(253, 105, 207, 0.2); }
   .ai-chat-input::placeholder { color: var(--text-muted); }
   .ai-send-btn {
     width: 36px;
     height: 36px;
     border-radius: 8px;
-    background: linear-gradient(135deg,#5571f5,#8b5cf6);
+    background-color: #fd69cf;
+    background-image: none;
     border: none;
     cursor: pointer;
     display: flex;
@@ -1084,8 +1551,9 @@
     justify-content: center;
     flex-shrink: 0;
     align-self: flex-end;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, filter 0.15s;
   }
+  .ai-send-btn:not(:disabled):hover { filter: brightness(0.93); }
   .ai-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .ai-send-btn svg { width:16px; height:16px; fill: #fff; }
 
@@ -1131,26 +1599,30 @@
     margin-top: 8px; justify-content: flex-end;
   }
   .user-email {
-    font-size: 12px; color: var(--text-secondary);
+    font-size: 12px; color: #ffd8ed;
     max-width: 180px; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap;
   }
   .btn-logout {
     font-size: 12px; padding: 4px 10px;
     background: transparent;
-    border: 1px solid var(--border-light);
-    border-radius: 6px; color: var(--text-muted);
+    border: 1px solid var(--tag-slate-bg);
+    border-radius: 6px;
+    color: var(--tag-slate-bg);
     cursor: pointer; transition: all 0.15s;
   }
-  .btn-logout:hover { border-color: #f04040; color: #f04040; }
+  .btn-logout:hover {
+    border-color: var(--tag-slate-hover);
+    color: var(--tag-slate-text);
+  }
   .btn-login-header {
     font-size: 12px; padding: 5px 12px; margin-top: 8px;
-    background: rgba(85,113,245,0.12);
-    border: 1px solid rgba(85,113,245,0.3);
+    background: rgba(255,20,147,0.12);
+    border: 1px solid rgba(255,20,147,0.3);
     border-radius: 8px; color: var(--accent);
     cursor: pointer; transition: all 0.15s; display: inline-block;
   }
-  .btn-login-header:hover { background: rgba(85,113,245,0.22); }
+  .btn-login-header:hover { background: rgba(255,20,147,0.22); }
 
   /* 操作日记 */
   .od-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 0; }
@@ -1167,14 +1639,60 @@
   .od-sub { font-size: 11px; color: var(--text-secondary); }
   .od-nav-type { font-size: 12px; color: var(--text-secondary); }
   .od-code { color: var(--text-secondary); font-size: 12px; display: block; margin-top: 2px; }
-  .od-table .btn-remove {
-    color: var(--text-secondary);
-    border-color: var(--border-light);
+
+  /* 操作日记页：标题与表头、副色文案（与基金大盘 #8b909e 一致） */
+  #tab3-content .section-title {
+    color: #fff;
   }
-  .od-table .btn-remove:hover {
-    color: var(--text-primary);
-    border-color: rgba(255, 255, 255, 0.35);
-    background: rgba(255, 255, 255, 0.06);
+  #tab3-content .section-title::before {
+    background: #fd69cf;
+    background-image: none;
+  }
+  #tab3-content .od-table th {
+    color: #fff;
+  }
+  #tab3-content .od-code,
+  #tab3-content .od-sub,
+  #tab3-content .od-nav-type {
+    color: #8b909e;
+  }
+  /* 与「我的持仓」操作列：建议/编辑/删除同款胶囊（仅编辑+删除） */
+  #tab3-content .od-op-btns {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  #tab3-content .od-op-btns .btn-edit,
+  #tab3-content .od-op-btns .btn-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 51px;
+    height: 20px;
+    min-width: 51px;
+    min-height: 20px;
+    max-width: 51px;
+    max-height: 20px;
+    padding: 0;
+    background: var(--bg-input);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-weight: 600;
+    box-shadow: none;
+    font-size: 11px;
+    line-height: 1;
+  }
+  #tab3-content .od-op-btns .btn-edit:hover,
+  #tab3-content .od-op-btns .btn-remove:hover {
+    background: var(--bg-input);
+    color: #fff;
+    border: none;
+    filter: brightness(1.12);
   }
   .od-badge-buy {
     display: inline-block; padding: 2px 8px; border-radius: 6px;
@@ -1185,6 +1703,34 @@
     font-size: 12px; font-weight: 600; background: rgba(34, 196, 94, 0.15); color: var(--loss);
   }
   .od-empty { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 14px; }
+  .od-pager { margin-top: 4px; }
+  .od-pager-bar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 12px 0 4px; border-top: 1px solid var(--border);
+  }
+  .od-pager-meta { font-size: 13px; color: var(--text-secondary); }
+  .od-pager-ctrl {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+    gap: 8px; flex: 1 1 auto; min-width: 0;
+  }
+  .od-pager-label { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+  .od-pager-select {
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-primary); font-size: 13px; padding: 6px 10px; cursor: pointer;
+  }
+  /* 跳至 x 页：与文案同一行，避免 input 单独换行后被拉满宽度 */
+  .od-pager-jump-group {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex: 0 0 auto; white-space: nowrap;
+  }
+  .od-pager-input {
+    box-sizing: border-box;
+    width: 44px !important; min-width: 44px; max-width: 44px; flex: 0 0 44px;
+    background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-primary); font-size: 13px; padding: 4px 4px; text-align: center;
+  }
+  .od-pager-btn { padding: 6px 12px !important; font-size: 12px !important; }
+  .od-pager-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .od-modal-box {
     background: var(--bg-card);
     border: 1px solid var(--border-light);
@@ -1195,11 +1741,55 @@
     overflow-y: auto;
   }
   .od-modal-box h3 { margin: 0 0 16px; font-size: 17px; color: var(--text-primary); }
-  .od-modal-box .auth-form input[type="date"] {
-    font-weight: 700;
+  .od-modal-box .auth-form .od-date-input,
+  .od-modal-box .auth-form input.flatpickr-alt-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
     color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
+    padding: 10px 12px;
+    cursor: pointer;
   }
+  .od-modal-box .auth-form input.flatpickr-input.od-date-input { display: none !important; }
+  /* Flatpickr 弹层（深色 + 高于操作日记弹窗） */
+  .flatpickr-calendar {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-light) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.55) !important;
+    z-index: 5001 !important;
+  }
+  .flatpickr-months .flatpickr-month {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    fill: var(--text-primary) !important;
+  }
+  .flatpickr-current-month .flatpickr-monthDropdown-months,
+  .flatpickr-current-month input.cur-year {
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    font-weight: 600;
+  }
+  .flatpickr-weekdays { background: var(--bg-card) !important; }
+  span.flatpickr-weekday { color: var(--text-secondary) !important; font-weight: 600; }
+  .flatpickr-day {
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+  }
+  .flatpickr-day:hover { background: rgba(255, 20, 147, 0.2) !important; border-color: transparent !important; }
+  .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: var(--text-muted) !important; }
+  .flatpickr-day.today { border-color: var(--accent) !important; }
+  .flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+  }
+  .flatpickr-day.flatpickr-disabled { color: var(--text-muted) !important; opacity: 0.45; }
+  .flatpickr-arrow { fill: var(--text-secondary) !important; }
   .od-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 
   /* Auth Modal */
@@ -1219,7 +1809,7 @@
   }
   .auth-title {
     font-size: 18px; font-weight: 700; margin-bottom: 4px;
-    background: linear-gradient(135deg, #8ba4ff, #c4b5fd);
+    background: linear-gradient(135deg, #ff5da0, #ffb3d9);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
@@ -1301,7 +1891,7 @@
       </div>
       <div class="logo-text">
         <h1>富婆</h1>
-        <p>基金宝宝冲冲冲</p>
+        <p>股神巴菲丹</p>
       </div>
     </div>
     <div class="header-right">
@@ -1355,22 +1945,26 @@
     <div style="display:flex;gap:8px;align-items:center;">
       <div id="navModeBadge" class="nav-mode-badge"></div>
       <div style="position:relative;" id="privacyWrap">
-        <button class="privacy-toggle" id="privacyBtn" onclick="_togglePrivacyMenu()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="privacyIcon">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+        <button class="privacy-toggle" id="privacyBtn" onclick="_togglePrivacyMenu()" type="button">
+          <svg id="privacyIcon" viewBox="0 0 24 24" aria-hidden="true">
+            <g class="privacy-ico-line" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+              <path d="M20 3v4M22 5h-4M4 17v2M5 18h2"/>
+            </g>
+            <g class="privacy-ico-fill" fill="currentColor">
+              <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+              <circle cx="20" cy="5" r="1.25"/>
+              <circle cx="18" cy="5" r="1.25"/>
+              <circle cx="4" cy="18" r="1.25"/>
+              <circle cx="6" cy="19" r="1.25"/>
+            </g>
           </svg>
           <span id="privacyLabel">隐私</span>
         </button>
         <div class="privacy-dropdown" id="privacyMenu"></div>
       </div>
-      <button class="btn btn-add-open" onclick="_openAddModal()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-        添加基金
-      </button>
-      <button class="btn btn-add-open" type="button" onclick="_odGoDiary(1)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
-        操作日记
-      </button>
+      <button class="btn btn-add-open" onclick="_openAddModal()">添加基金</button>
+      <button class="btn btn-add-open" type="button" onclick="_odGoDiary(1)">操作日记</button>
       <button class="btn btn-refresh" id="refreshBtn" onclick="refreshAll()">刷新估值</button>
     </div>
   </div>
@@ -1515,15 +2109,9 @@
       <div class="fund-count">共 <span id="rankCount">0</span> 只基金</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div id="watchModeBadge" class="nav-mode-badge estimated"><span class="badge-dot"></span>非交易日</div>
-        <button class="btn btn-add-open" onclick="_openWatchModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          添加监控
-        </button>
-        <button class="btn btn-add-open" type="button" onclick="_odGoDiary(2)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h8M8 15h4"/></svg>
-          操作日记
-        </button>
-        <button class="btn btn-refresh" onclick="refreshAll()">刷新行情</button>
+        <button class="btn btn-add-open" onclick="_openWatchModal()">添加监控</button>
+        <button class="btn btn-add-open" type="button" onclick="_odGoDiary(2)">操作日记</button>
+        <button class="btn btn-refresh" id="refreshWatchBtn" onclick="refreshAll()">刷新行情</button>
       </div>
     </div>
 
@@ -1535,8 +2123,7 @@
             <tr>
               <th data-col="0" style="width:52px;">排名<span class="col-resizer"></span></th>
               <th data-col="1">基金<span class="col-resizer"></span></th>
-              <th data-col="2">今日估值<span class="col-resizer"></span></th>
-              <th data-col="3" class="th-sort">
+              <th data-col="2" class="th-sort">
                 涨跌幅
                 <span class="sort-arrows">
                   <button class="arr" id="arrAsc"  onclick="_sortRank(false)" title="升序（低→高）">▲</button>
@@ -1544,7 +2131,8 @@
                 </span>
                 <span class="col-resizer"></span>
               </th>
-              <th data-col="4">昨日净值<span class="col-resizer"></span></th>
+              <th data-col="3">昨日净值<span class="col-resizer"></span></th>
+              <th data-col="4" id="watchThTodayNav">今日估值<span class="col-resizer"></span></th>
               <th data-col="5">操作<span class="col-resizer"></span></th>
             </tr>
           </thead>
@@ -1563,7 +2151,7 @@
           <button type="button" id="odBackBtn" class="btn btn-cancel" style="padding:7px 12px;font-size:12px;white-space:nowrap;" onclick="_odBackFromDiary()">← 涨跌行情</button>
           <span class="section-title" style="margin:0;">操作日记</span>
         </div>
-        <button type="button" class="btn btn-primary" onclick="_odOpenAdd()">＋ 添加记录</button>
+        <button type="button" class="btn btn-refresh" onclick="_odOpenAdd()">添加记录</button>
       </div>
       <div id="odTableWrap" class="od-table-wrap" style="margin-top:16px;">
         <table class="od-table" id="odTable">
@@ -1576,14 +2164,16 @@
               <th>金额 / 份额</th>
               <th>参考净值</th>
               <th>卖出回款</th>
+              <th>赎回费</th>
               <th>净值类型</th>
               <th>持仓同步</th>
-              <th style="width:72px">操作</th>
+              <th style="width:64px">操作</th>
             </tr>
           </thead>
           <tbody id="odTbody"></tbody>
         </table>
       </div>
+      <div id="odPager" class="od-pager" style="display:none;" aria-label="操作日记分页"></div>
       <div id="odEmpty" class="od-empty" style="display:none;">暂无记录，点击「添加记录」开始</div>
     </div>
   </div><!-- /tab3-content -->
@@ -1591,11 +2181,11 @@
   <!-- 操作日记 · 添加 -->
   <div class="auth-modal" id="odModal" onclick="if(event.target===this)_odCloseModal()">
     <div class="od-modal-box" onclick="event.stopPropagation()">
-      <h3>添加操作记录</h3>
+      <h3 id="odModalTitle">添加操作记录</h3>
       <div class="auth-form">
         <div class="form-group">
           <label>操作日期</label>
-          <input type="date" id="od_m_date" />
+          <input type="text" id="od_m_date" class="od-date-input" placeholder="点击选择日期（可补记昨天及更早）" autocomplete="off" readonly />
         </div>
         <div class="form-group">
           <label>选择持仓（或选手动填写）</label>
@@ -1639,10 +2229,16 @@
           <div id="od_m_navhint" style="font-size:11px;color:var(--text-muted);margin-top:6px;"></div>
           <div id="od_m_sell_preview" style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.45;"></div>
         </div>
+        <div class="form-group" id="od_m_hold_wrap" style="display:none;">
+          <label>持有阶段</label>
+          <select id="od_m_hold_stage" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;padding:10px 12px;">
+            <option value="">选填，不填则按操作日记记录估算（如有）</option>
+            <option value="lt7">0≤持有天数＜7</option>
+            <option value="7to30">7≤持有天数＜30</option>
+            <option value="ge30">30≤持有天数</option>
+          </select>
+        </div>
       </div>
-      <p style="font-size:12px;color:var(--text-muted);line-height:1.55;margin:14px 0 0;">
-        <strong style="color:var(--text-secondary)">与持仓联动：</strong><strong>参考净值选「估值」</strong>时，只先记在日记里（预估金额/份额），<strong>等该操作日确认净值能从行情拉到之后</strong>再写入「我的持仓」；请<strong>刷新估值</strong>触发同步。若填的是<strong>确认净值</strong>或<strong>手工单价</strong>，保存后会立刻按该价格同步持仓。
-      </p>
       <div class="od-modal-actions">
         <button class="btn btn-cancel-modal" type="button" onclick="_odCloseModal()">取消</button>
         <button class="btn btn-primary" type="button" onclick="_odSubmit()">保存</button>
@@ -1694,10 +2290,11 @@
           <div class="section-title" style="margin:0 0 4px">当日涨跌幅排行</div>
           <div class="mr-hint">按涨幅降序；交易日18:00前用估值，18:00后及非交易日用确认净值</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span id="mrLastRefresh" style="font-size:11px;color:var(--text-muted);"></span>
-          <span id="mrAutoLabel" style="font-size:11px;color:var(--text-muted);"></span>
-          <button class="btn btn-refresh" onclick="_refreshMRank()">刷新</button>
+        <div class="mr-toolbar-right">
+          <span id="mrLastRefresh"></span>
+          <span id="mrAutoLabel"></span>
+          <div id="mrNavModeBadge" class="nav-mode-badge"></div>
+          <button type="button" class="btn btn-refresh" id="mrRefreshBtn" onclick="_refreshMRank()">刷新数据</button>
         </div>
       </div>
       <div id="mrBody"><div class="mr-empty">点击加载排行榜</div></div>
@@ -1713,8 +2310,11 @@
           <div class="section-title" style="margin:0 0 4px">板块涨跌幅汇总</div>
           <div class="mr-hint">按板块汇总 79 只基金，涨跌幅为该板块下所有基金涨跌幅的汇总（默认降序），点击板块展开查看单只基金</div>
         </div>
-        <div>
-          <button class="btn btn-refresh" onclick="_refreshSector()">刷新</button>
+        <div class="mr-toolbar-right">
+          <span id="sectorLastRefresh"></span>
+          <span id="sectorAutoLabel"></span>
+          <div id="sectorNavModeBadge" class="nav-mode-badge"></div>
+          <button type="button" class="btn btn-refresh" id="sectorRefreshBtn" onclick="_refreshSector()">刷新数据</button>
         </div>
       </div>
       <div id="sectorBody"><div class="mr-empty">点击加载板块行情</div></div>
@@ -1742,7 +2342,7 @@
   })();
 </script>
 
-<button class="ai-fab" id="aiFab" onclick="_aiToggle()" title="AI 基金助手">
+<button type="button" class="ai-fab" id="aiFab" title="AI 基金助手（可拖动）">
   🤖
   <span class="ai-fab-badge" id="aiFabBadge"></span>
 </button>
@@ -1841,6 +2441,8 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/zh.js"></script>
 <script>
 (function () {
   /* ── State ── */
@@ -1971,6 +2573,20 @@
     return parseFloat(p.toFixed(4));
   }
 
+  /**
+   * 合并「官方 dwjz」与「gsz/gszzl 反推」：二者接近时以 dwjz 为准（贴近披露）；偏差大时多为 jzrq 滞后，用反推对齐涨跌幅。
+   * 注意：jzrq==今天 时 dwjz 是当日净值，不能当作昨日净值。
+   */
+  function _mergePrevNavImpliedVsDwjz(imp, dataDwjz, jzrqStr, todayStr, apiDateFresh) {
+    const impN = imp != null ? parseFloat(imp) : NaN;
+    if (!(impN > 0) || isNaN(impN)) return null;
+    const jzrqIsToday = (jzrqStr || '') === todayStr;
+    const dw = (!jzrqIsToday && dataDwjz && apiDateFresh) ? parseFloat(dataDwjz) : NaN;
+    if (!(dw > 0) || isNaN(dw)) return impN;
+    const relDiff = Math.abs(impN - dw) / dw;
+    return relDiff > 0.01 ? impN : dw;
+  }
+
   /** 今日盈亏用份额：优先持仓份额；否则市值÷现价（与金额列一致）。勿再用 amount÷成本净值，会严重偏离昨净→今估 */
   function _effSharesForDailyPnl(f, currentNav) {
     if (f.holdingShares != null && !isNaN(f.holdingShares) && f.holdingShares > 0) {
@@ -2000,8 +2616,9 @@
   }
 
   function save() {
-    const data = funds.map(({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq }) =>
-      ({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq })
+    // 须持久化 prevNavDate：与「昨日净值」数值同源；若漏存，硬刷新后只剩 jzrq，披露日常滞后一天（显示少一天）
+    const data = funds.map(({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, prevNavDate, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq }) =>
+      ({ code, amount, tag, costBasis, costBasisLocked, holdingShares, holdingSharesLocked, costNav, prevNav, prevNavDate, confirmedNav, navConfirmed, confirmedDate, name, gsz, gszzl, gztime, jzrq })
     );
     localStorage.setItem('fund_calc_v6', JSON.stringify(data));
     _sbSave({ funds: data });
@@ -2024,6 +2641,7 @@
           if (f.costBasisLocked     === undefined) f.costBasisLocked     = false;
           if (f.holdingShares       === undefined) f.holdingShares       = null;
           if (f.holdingSharesLocked === undefined) f.holdingSharesLocked = false;
+          if (f.prevNavDate === undefined) f.prevNavDate = null;
         });
         // 迁移后立即以新格式保存
         save();
@@ -2119,6 +2737,62 @@
     return null;
   }
 
+  /**
+   * 「昨日净值」：取 PZD 曲线上的「上一交易日收盘」。
+   * 规则：最后一点 == 今天 → 倒数第二点；否则最后一点就是上一交易日。
+   * 不依赖 fundgz 的 jzrq（它常常滞后），纯粹看曲线自身。
+   */
+  function _prevNavFromPzdTrend(trend, todayStr) {
+    if (!trend || !trend.length) return null;
+    const last = trend[trend.length - 1];
+    const lastDate = new Date(last.x + 8 * 3600 * 1000).toISOString().slice(0, 10);
+    if (lastDate === todayStr && trend.length >= 2) {
+      const n = parseFloat(trend[trend.length - 2].y);
+      return (n > 0 && !isNaN(n)) ? parseFloat(n.toFixed(4)) : null;
+    }
+    const n = parseFloat(last.y);
+    return (n > 0 && !isNaN(n)) ? parseFloat(n.toFixed(4)) : null;
+  }
+
+  /** 与 _prevNavFromPzdTrend 对应：昨日净值在 PZD 曲线上所属的自然日（YYYY-MM-DD） */
+  function _prevNavDateFromPzdTrend(trend, todayStr) {
+    if (!trend || !trend.length) return null;
+    const last = trend[trend.length - 1];
+    const lastDate = new Date(last.x + 8 * 3600 * 1000).toISOString().slice(0, 10);
+    if (lastDate === todayStr && trend.length >= 2) {
+      return new Date(trend[trend.length - 2].x + 8 * 3600 * 1000).toISOString().slice(0, 10);
+    }
+    return new Date(last.x + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
+  /** 根据最终 prevNav 与 PZD/反推/dwjz 的吻合关系，写入与表格「昨日净值」一致的披露日（避免 jzrq 滞后导致标签少一天） */
+  function _syncPrevNavDateFromRefresh(f, data, trend, todayStr) {
+    const jz = (data && data.jzrq) ? String(data.jzrq).trim() : '';
+    const pv = parseFloat(f.prevNav);
+    if (!(pv > 0) || isNaN(pv)) {
+      f.prevNavDate = jz || null;
+      return;
+    }
+    const pn = trend && trend.length ? _prevNavFromPzdTrend(trend, todayStr) : null;
+    const dPzd = trend && trend.length ? _prevNavDateFromPzdTrend(trend, todayStr) : null;
+    const imp = _impliedPrevFromGszGszzl(f.gsz, f.gszzl);
+    const dw = (data && data.dwjz) ? parseFloat(data.dwjz) : NaN;
+    const near = (a, b) => a > 0 && b > 0 && Math.abs(a - b) / b < 0.001;
+    if (pn != null && near(pv, pn) && dPzd) {
+      f.prevNavDate = dPzd;
+      return;
+    }
+    if (imp != null && near(pv, imp)) {
+      f.prevNavDate = jz || null;
+      return;
+    }
+    if (!isNaN(dw) && near(pv, dw) && jz) {
+      f.prevNavDate = jz;
+      return;
+    }
+    f.prevNavDate = dPzd || jz || null;
+  }
+
   /* ── Refresh all (portfolio + watchlist) sequentially ── */
   async function refreshAll() {
     const allItems = [...funds, ...watchlist];
@@ -2126,8 +2800,23 @@
     if (allItems.length === 0) { showToast('请先添加基金', 'error'); return; }
 
     const btn = document.getElementById('refreshBtn');
+    const btnWatch = document.getElementById('refreshWatchBtn');
+    const btnMr = document.getElementById('mrRefreshBtn');
+    const btnSector = document.getElementById('sectorRefreshBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
+    if (btnWatch) {
+      btnWatch.disabled = true;
+      btnWatch.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
+    }
+    if (btnMr) {
+      btnMr.disabled = true;
+      btnMr.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
+    }
+    if (btnSector) {
+      btnSector.disabled = true;
+      btnSector.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
+    }
 
     allItems.forEach(f => { f.loading = true; f.error = false; });
     render();
@@ -2135,6 +2824,7 @@
 
     let ok = 0;
     for (const f of allItems) {
+      let _pzdTrendCache = null;
       try {
         const data = await fetchOne(f.code);
         if (data.name) f.name = data.name;
@@ -2234,10 +2924,43 @@
             f.holdingShares = parseFloat((f.amount / f.costNav).toFixed(4));
           }
         }
-        // 非「今日已 PZD 确认」时，用 gsz/gszzl 同源反推昨收，覆盖 fundgz dwjz 滞后（否则昨净会少更新一天）
-        if (!alreadyConfirmedToday) {
+        // 昨日净值：PZD 曲线 + gsz/gszzl 反推 交叉验证
+        // 核心思路：PZD 曲线可能滞后（如 019143 停在 4/3），而 gszzl 通常基于最新交易日；
+        //          二者不一致时优先 implied（与页面显示的涨跌幅同口径）。
+        if (!alreadyConfirmedToday && !f.error) {
           const imp = _impliedPrevFromGszGszzl(f.gsz, f.gszzl);
-          if (imp != null && imp > 0) f.prevNav = imp;
+          try {
+            _pzdTrendCache = await fetchPingzhongdata(f.code);
+            const pn = _prevNavFromPzdTrend(_pzdTrendCache, todayStr);
+            if (pn != null && pn > 0 && imp != null && imp > 0) {
+              const diff = Math.abs(pn - imp) / Math.min(pn, imp);
+              f.prevNav = diff > 0.005 ? imp : pn;
+            } else if (pn != null && pn > 0) {
+              f.prevNav = pn;
+            } else if (imp != null && imp > 0) {
+              f.prevNav = imp;
+            } else {
+              const apiJzrqM = (data.jzrq || '');
+              const threeDaysAgoM = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+              const apiDateFreshM = apiJzrqM >= threeDaysAgoM;
+              const merged = _mergePrevNavImpliedVsDwjz(imp, data.dwjz, apiJzrqM, todayStr, apiDateFreshM);
+              if (merged != null && merged > 0) f.prevNav = merged;
+            }
+          } catch (_) {
+            if (imp != null && imp > 0) {
+              f.prevNav = imp;
+            } else {
+              const apiJzrqM = (data.jzrq || '');
+              const threeDaysAgoM = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+              const apiDateFreshM = apiJzrqM >= threeDaysAgoM;
+              const merged = _mergePrevNavImpliedVsDwjz(imp, data.dwjz, apiJzrqM, todayStr, apiDateFreshM);
+              if (merged != null && merged > 0) f.prevNav = merged;
+            }
+          }
+          if (f.prevNav > 0 && f.gsz != null && !isNaN(f.gsz) && f.gsz > 0) {
+            f.gszzl = parseFloat(((f.gsz - f.prevNav) / f.prevNav * 100).toFixed(4));
+          }
+          _syncPrevNavDateFromRefresh(f, data, _pzdTrendCache, todayStr);
         }
         f.loading = false;
         ok++;
@@ -2258,7 +2981,7 @@
       );
       if (needFetch && !f.error) {
         try {
-          const trend = await fetchPingzhongdata(f.code);
+          const trend = _pzdTrendCache || await fetchPingzhongdata(f.code);
           if (trend && trend.length > 0) {
             const last = trend[trend.length - 1];
             const lastDate = new Date(last.x + 8 * 3600 * 1000).toISOString().slice(0, 10);
@@ -2266,6 +2989,7 @@
             if (lastDate === todayStr2) {
               if (trend.length >= 2) {
                 f.prevNav = parseFloat(parseFloat(trend[trend.length - 2].y).toFixed(4));
+                f.prevNavDate = new Date(trend[trend.length - 2].x + 8 * 3600 * 1000).toISOString().slice(0, 10);
               }
               // 今日确认净值已出（PZD 来源，最权威）
               f.navConfirmed  = true;
@@ -2289,10 +3013,13 @@
                 f.amount = parseFloat((f.holdingShares * cnav).toFixed(2));
               }
             } else if (!f.confirmedNav) {
-              // confirmedNav 为空：用最后一条历史净值补全，修复昨日净值显示
-              f.confirmedNav  = cnav;
-              f.confirmedDate = lastDate;
-              f.prevNav       = cnav;
+              // confirmedNav 为空：仅补全 confirmedNav/confirmedDate 做基线记录
+              // 绝不覆盖 prevNav（主 PZD+implied 交叉逻辑已处理好）
+              const cnavN = parseFloat(cnav);
+              if (cnavN > 0) {
+                f.confirmedNav  = cnavN;
+                f.confirmedDate = lastDate;
+              }
             }
           }
         } catch (_) { /* 静默回退，继续显示估值 */ }
@@ -2314,6 +3041,18 @@
 
     updateNavModeUI();
     btn.disabled = false;
+    if (btnWatch) {
+      btnWatch.disabled = false;
+      btnWatch.textContent = '刷新行情';
+    }
+    if (btnMr) {
+      btnMr.disabled = false;
+      btnMr.textContent = '刷新数据';
+    }
+    if (btnSector) {
+      btnSector.disabled = false;
+      btnSector.textContent = '刷新数据';
+    }
     showToast(ok > 0 ? '已更新 ' + ok + ' 只基金数据' : '全部更新失败，请检查网络', ok > 0 ? 'success' : 'error');
     resetTimer();
 
@@ -2331,7 +3070,7 @@
     if (isNaN(amount) || amount <= 0)     return showToast('请输入有效的买入金额', 'error');
     if (funds.some(f => f.code === code)) return showToast('该基金代码已添加', 'error');
 
-    funds.push({ code, amount, tag: tag || null, costBasis: null, costBasisLocked: false, holdingShares: null, holdingSharesLocked: false, costNav: null, prevNav: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, name: code, gsz: null, gszzl: null, gztime: null, jzrq: null, loading: false, error: false });
+    funds.push({ code, amount, tag: tag || null, costBasis: null, costBasisLocked: false, holdingShares: null, holdingSharesLocked: false, costNav: null, prevNav: null, prevNavDate: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, name: code, gsz: null, gszzl: null, gztime: null, jzrq: null, loading: false, error: false });
     save();
     render();
     updateSummary();
@@ -2511,8 +3250,8 @@
   let sortDesc  = true;
 
   function saveWatchlist() {
-    const data = watchlist.map(({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate }) =>
-      ({ code, name, tag, prevNav, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate })
+    const data = watchlist.map(({ code, name, tag, prevNav, prevNavDate, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate }) =>
+      ({ code, name, tag, prevNav, prevNavDate, gsz, gszzl, gztime, jzrq, confirmedNav, navConfirmed, confirmedDate })
     );
     localStorage.setItem('fund_watchlist_v1', JSON.stringify(data));
     _sbSave({ watchlist: data });
@@ -2528,6 +3267,7 @@
           if (w.confirmedNav  === undefined) w.confirmedNav  = null;
           if (w.jzrq          === undefined) w.jzrq          = null;
           if (w.tag           === undefined) w.tag           = null;
+          if (w.prevNavDate === undefined) w.prevNavDate = null;
         });
       }
     } catch (_) { watchlist = []; }
@@ -2557,9 +3297,21 @@
     document.getElementById('tabBtn4').className = 'tab-btn' + (n === 4 ? ' active' : '');
     document.getElementById('tabBtn5').className = 'tab-btn' + (n === 5 ? ' active' : '');
     if (n === 2) renderRanking();
-    if (n === 3) renderOperationDiary();
-    if (n === 4) _mrLoad();
-    if (n === 5) _sectorLoad();
+    if (n === 3) {
+      renderOperationDiary();
+      void (async () => {
+        await _diaryRepairWrongConfirmedNavs();
+        await _odRecalcAllSellFees();
+      })();
+    }
+    if (n === 4) {
+      updateNavModeUI();
+      _mrLoad();
+    }
+    if (n === 5) {
+      updateNavModeUI();
+      _sectorLoad();
+    }
   };
 
   /* ══════════════════════════════════════
@@ -2581,6 +3333,53 @@
   /* ══════════════════════════════════════ 操作日记 ══════════════════════════════════════ */
   const OD_KEY = 'fund_operation_diary_v1';
   let operationDiary = [];
+  /** 非 null 时表示正在编辑该 id 的日记记录 */
+  let _odEditingId = null;
+  /** 操作日记弹窗 · 操作日期（Flatpickr，中文月历，展示为 Y / m / d） */
+  let _odFlatpickr = null;
+  /** 操作日记列表分页 */
+  let _odPage = 1;
+  let _odPageSize = 20;
+  let _odPagerTotalPages = 1;
+  try {
+    const _odPs = localStorage.getItem('od_pager_size');
+    if (_odPs === '20' || _odPs === '50') _odPageSize = parseInt(_odPs, 10);
+  } catch (_) {}
+
+  function _odInitFlatpickr() {
+    const el = document.getElementById('od_m_date');
+    if (!el || _odFlatpickr) return;
+    if (typeof flatpickr === 'undefined') {
+      el.removeAttribute('readonly');
+      el.type = 'date';
+      return;
+    }
+    const zh = (flatpickr.l10ns && flatpickr.l10ns.zh) ? flatpickr.l10ns.zh : undefined;
+    _odFlatpickr = flatpickr(el, {
+      locale: zh,
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'Y / m / d',
+      allowInput: false,
+      clickOpens: true,
+      maxDate: new Date(),
+      disableMobile: true,
+      appendTo: document.body,
+      onChange: function () {
+        if (typeof _odRefreshSellPreview === 'function') _odRefreshSellPreview();
+      }
+    });
+  }
+
+  function _odSetOdModalDate(dateStr) {
+    const d = (dateStr && String(dateStr).trim()) ? String(dateStr).trim() : getTodayStr();
+    if (_odFlatpickr) {
+      _odFlatpickr.setDate(d, false);
+    } else {
+      const el = document.getElementById('od_m_date');
+      if (el) el.value = d;
+    }
+  }
 
   function loadOperationDiary() {
     operationDiary = [];
@@ -2597,12 +3396,117 @@
         if (r.holdingsSynced === undefined) r.holdingsSynced = false;
         if (r.needsConfirmToSync === undefined) r.needsConfirmToSync = false;
       }
+      if (r.side === 'sell' && r.sellHoldingDays != null && r.sellHoldingDaysSource === undefined) {
+        r.sellHoldingDaysSource = 'manual';
+      }
     });
   }
 
   function saveOperationDiary() {
     localStorage.setItem(OD_KEY, JSON.stringify(operationDiary));
     _sbSave({ operation_diary: operationDiary });
+  }
+
+  /** 判断编辑后是否影响已同步到持仓的数值（仅标签/名称/持有阶段等不算） */
+  function _odDiaryAffectsSyncedHoldings(oldR, newR) {
+    if (String(oldR.date || '') !== String(newR.date || '')) return true;
+    if (String(oldR.code || '').trim() !== String(newR.code || '').trim()) return true;
+    if (oldR.side !== newR.side) return true;
+    if (String(oldR.navType || '') !== String(newR.navType || '')) return true;
+    const on = parseFloat(oldR.nav);
+    const nn = parseFloat(newR.nav);
+    if (isNaN(on) || isNaN(nn) || Math.abs(on - nn) > 1e-5) return true;
+    if (oldR.side === 'buy') {
+      const om = parseFloat(oldR.money);
+      const nm = parseFloat(newR.money);
+      if (isNaN(om) || isNaN(nm) || Math.abs(om - nm) > 0.005) return true;
+    } else {
+      const os = parseFloat(oldR.shares);
+      const ns = parseFloat(newR.shares);
+      if (isNaN(os) || isNaN(ns) || Math.abs(os - ns) > 1e-4) return true;
+    }
+    return false;
+  }
+
+  /**
+   * 冲回一条已同步日记对 funds 的影响（与 _diaryApplyToHoldings 互逆，按记录当时 nav 还原金额）。
+   * 全部卖出导致删行时：按本记录份额与净值恢复一条持仓（成本近似为当日净值）。
+   */
+  function _diaryRevertHoldingsEffect(rec) {
+    if (!rec.holdingsSynced) return true;
+    const nav = parseFloat(rec.nav);
+    if (isNaN(nav) || nav <= 0) {
+      showToast('记录净值无效，无法冲回持仓', 'error');
+      return false;
+    }
+    const code = (rec.code || '').trim();
+    if (!code) return false;
+
+    if (rec.side === 'buy') {
+      const money = parseFloat(rec.money);
+      if (isNaN(money) || money <= 0) return false;
+      const addShares = money / nav;
+      const idx = funds.findIndex(f => f.code === code);
+      if (idx < 0) {
+        showToast('持仓中无该基金，无法冲回该笔买入', 'error');
+        return false;
+      }
+      const f = funds[idx];
+      const currentS = parseFloat(f.holdingShares);
+      if (isNaN(currentS) || currentS + 1e-5 < addShares) {
+        showToast('当前份额与记录不一致，无法自动冲回，请手动核对持仓', 'error');
+        return false;
+      }
+      const newS = currentS - addShares;
+      if (newS < 0.0001) {
+        funds.splice(idx, 1);
+      } else {
+        const currentCost = (f.costBasisLocked && f.costBasis != null && f.costBasis > 0)
+          ? f.costBasis
+          : (f.costNav || f.prevNav || nav);
+        const oldCost = (currentS * currentCost - money) / newS;
+        f.holdingShares = parseFloat(newS.toFixed(4));
+        f.costBasis = parseFloat(oldCost.toFixed(4));
+        f.costNav = parseFloat(oldCost.toFixed(4));
+        f.costBasisLocked = true;
+        f.amount = parseFloat((newS * nav).toFixed(2));
+      }
+      save();
+      return true;
+    }
+
+    const sellS = parseFloat(rec.shares);
+    if (isNaN(sellS) || sellS <= 0) return false;
+    const idx = funds.findIndex(f => f.code === code);
+    if (idx < 0) {
+      funds.push({
+        code,
+        amount: parseFloat((sellS * nav).toFixed(2)),
+        tag: rec.tag || null,
+        costBasis: nav,
+        costBasisLocked: true,
+        holdingShares: parseFloat(sellS.toFixed(4)),
+        holdingSharesLocked: true,
+        costNav: nav,
+        prevNav: null,
+        prevNavDate: null,
+        confirmedNav: null,
+        navConfirmed: false,
+        confirmedDate: null,
+        name: rec.name || code,
+        gsz: null, gszzl: null, gztime: null, jzrq: null,
+        loading: false, error: false
+      });
+      save();
+      return true;
+    }
+    const f = funds[idx];
+    const newS = parseFloat(f.holdingShares) + sellS;
+    f.holdingShares = parseFloat(newS.toFixed(4));
+    f.holdingSharesLocked = true;
+    f.amount = parseFloat((newS * nav).toFixed(2));
+    save();
+    return true;
   }
 
   /** 将一条操作日记合并到 funds[]；成功则 rec.holdingsSynced = true */
@@ -2635,6 +3539,7 @@
           holdingSharesLocked: true,
           costNav: nav,
           prevNav: null,
+          prevNavDate: null,
           confirmedNav: null,
           navConfirmed: false,
           confirmedDate: null,
@@ -2706,7 +3611,7 @@
     return true;
   }
 
-  /** 曾用估值记账且未同步的条目：当可操作日 rec.date 的确认净值可从行情或PZD 取得时，写入持仓并更新日记 */
+  /** 处理未同步的条目：先处理待确认的，再处理卡住的（holdingsSynced=false, needsConfirmToSync=false） */
   async function _diaryTryApplyPending() {
     const todayStr = getTodayStr();
     const pending = operationDiary
@@ -2714,36 +3619,417 @@
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
         String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
     for (const rec of pending) {
-      const opDate = rec.date;
-      let cnav = null;
-      const nt = 'confirmed';
-      const f = funds.find(x => x.code === rec.code);
-      if (f && f.confirmedDate === opDate && f.confirmedNav != null && !isNaN(f.confirmedNav) && f.navConfirmed) {
-        cnav = f.confirmedNav;
-      } else {
-        try {
-          const data = await fetchOne(rec.code);
-          if (data.jzrq === opDate && data.dwjz) {
-            cnav = parseFloat(data.dwjz);
-          }
-        } catch (_) {}
-      }
-      if (cnav == null || isNaN(cnav) || cnav <= 0) {
-        try {
-          const trend = await fetchPingzhongdata(rec.code);
-          const hit = _pzdNavOnDate(trend, opDate);
-          if (hit != null && !isNaN(hit) && hit > 0) cnav = hit;
-        } catch (_) {}
-      }
+      const cnav = await _diaryFetchConfirmedNav(rec.code, rec.date);
       if (cnav == null || isNaN(cnav) || cnav <= 0) continue;
       rec.nav = cnav;
-      rec.navType = nt;
+      rec.navType = 'confirmed';
       if (!_diaryApplyToHoldings(rec)) {
         rec.needsConfirmToSync = false;
         saveOperationDiary();
       }
     }
+    const stuck = operationDiary
+      .filter(r => !r.holdingsSynced && !r.needsConfirmToSync && r.date && r.date <= todayStr)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)) ||
+        String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    for (const rec of stuck) {
+      const cnav = await _diaryFetchConfirmedNav(rec.code, rec.date);
+      if (cnav != null && !isNaN(cnav) && cnav > 0) {
+        rec.nav = cnav;
+        rec.navType = 'confirmed';
+      }
+      _diaryApplyToHoldings(rec);
+    }
+    await _diaryRepairWrongConfirmedNavs();
     renderOperationDiary();
+  }
+
+  /**
+   * 获取某基金在某日的确认净值：优先 PZD（最权威），其次 fundgz jzrq 匹配，最后 fund 对象（仅 PZD 来源）。
+   * 绝不使用 fundgz 的 gsz/gztime 推断，避免盘中估值被当成确认净值。
+   */
+  async function _diaryFetchConfirmedNav(code, opDate) {
+    let cnav = null;
+    try {
+      const trend = await fetchPingzhongdata(code);
+      const hit = _pzdNavOnDate(trend, opDate);
+      if (hit != null && !isNaN(hit) && hit > 0) cnav = hit;
+    } catch (_) {}
+    if (cnav != null) return cnav;
+    try {
+      const data = await fetchOne(code);
+      if (data.jzrq === opDate && data.dwjz) {
+        cnav = parseFloat(data.dwjz);
+      }
+    } catch (_) {}
+    if (cnav != null && cnav > 0) return cnav;
+    const f = funds.find(x => x.code === code);
+    if (f && f.confirmedDate === opDate && f.confirmedNav != null && !isNaN(f.confirmedNav)
+        && f.navConfirmed && f.confirmedSource === 'pzd') {
+      cnav = f.confirmedNav;
+    }
+    return cnav;
+  }
+
+  /**
+   * 修复：净值被 fundgz 估值写错的条目（确认净值 ≠ PZD 真实值）。
+   * 覆盖所有 navType=confirmed 的条目（无论是否已同步持仓）。
+   * 只修 nav 显示，不重算持仓（卖出份额不受 nav 影响，买入份额微调可忽略）。
+   */
+  let _diaryRepairRunning = false;
+  async function _diaryRepairWrongConfirmedNavs() {
+    if (_diaryRepairRunning) return;
+    _diaryRepairRunning = true;
+    try {
+      const cutoff = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
+      const candidates = operationDiary.filter(r =>
+        r.navType === 'confirmed' && r.date && r.date >= cutoff);
+      if (candidates.length === 0) {
+        await _odRecalcAllSellFees();
+        return;
+      }
+      let changed = false;
+      const trendCache = {};
+      for (const rec of candidates) {
+        try {
+          if (!trendCache[rec.code]) {
+            trendCache[rec.code] = await fetchPingzhongdata(rec.code);
+          }
+          const trend = trendCache[rec.code];
+          const real = _pzdNavOnDate(trend, rec.date);
+          if (real != null && real > 0) {
+            const old = parseFloat(rec.nav);
+            if (Math.abs(old - real) / real > 0.001) {
+              rec.nav = real;
+              changed = true;
+            }
+          }
+        } catch (_) {}
+      }
+      if (changed) {
+        saveOperationDiary();
+        renderOperationDiary();
+      }
+      await _odRecalcAllSellFees();
+    } finally {
+      _diaryRepairRunning = false;
+    }
+  }
+
+  /** 天天基金 jjfl 页赎回费率缓存：code -> { ranges, ts } */
+  const _jjflRangesCache = Object.create(null);
+  let _odSellPreviewTimer = null;
+
+  function _defaultRedemptionRanges() {
+    return [
+      { min: 0, max: 7, rate: 0.015 },
+      { min: 7, max: 30, rate: 0.005 },
+      { min: 30, max: Infinity, rate: 0 }
+    ];
+  }
+
+  /** 将「适用期限」文案解析为 [min,max) 天；解析失败返回 null */
+  function _periodTextToRange(period) {
+    if (!period) return null;
+    let p = String(period).replace(/\s/g, '').replace(/，/g, ',');
+    let m = p.match(/^小于(\d+)天$/);
+    if (m) return { min: 0, max: parseInt(m[1], 10) };
+    m = p.match(/^大于等于(\d+)天,小于(\d+)天$/);
+    if (m) return { min: parseInt(m[1], 10), max: parseInt(m[2], 10) };
+    m = p.match(/^大于等于(\d+)天小于(\d+)天$/);
+    if (m) return { min: parseInt(m[1], 10), max: parseInt(m[2], 10) };
+    m = p.match(/^大于等于(\d+)天,小于(\d+)个月$/);
+    if (m) return { min: parseInt(m[1], 10), max: parseInt(m[2], 10) * 30 };
+    m = p.match(/^大于等于(\d+)天小于(\d+)个月$/);
+    if (m) return { min: parseInt(m[1], 10), max: parseInt(m[2], 10) * 30 };
+    m = p.match(/^大于等于(\d+)天,小于(\d+)年$/);
+    if (m) return { min: parseInt(m[1], 10), max: parseInt(m[2], 10) * 365 };
+    m = p.match(/^大于等于(\d+)天$/);
+    if (m) return { min: parseInt(m[1], 10), max: Infinity };
+    m = p.match(/^小于(\d+)天/);
+    if (m) return { min: 0, max: parseInt(m[1], 10) };
+    return null;
+  }
+
+  /** 从 jjfl 页解析「赎回费率」表（多表页面上第一个 comm.jjfl 常为认购/申购 0%，勿误用） */
+  function _parseJjflHtmlToRows(html) {
+    if (!html) return null;
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const tables = doc.querySelectorAll('table.w650.comm.jjfl, table.comm.jjfl');
+      if (!tables.length) return null;
+      let bestRows = null;
+      let bestScore = -1;
+      tables.forEach(table => {
+        const rows = [];
+        table.querySelectorAll('tbody tr').forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length < 2) return;
+          const period = (tds[0].textContent || '').trim();
+          const rateStr = (tds[1].textContent || '').trim();
+          const m = rateStr.match(/([\d.]+)\s*%/);
+          if (!m || !period) return;
+          if (period === '---' || /^[-–—\s]+$/.test(period)) return;
+          rows.push({ period, rate: parseFloat(m[1]) / 100 });
+        });
+        if (rows.length === 0) return;
+        let score = 0;
+        for (const r of rows) {
+          const p = r.period;
+          if (/天/.test(p)) score += 20;
+          if (/小于\d+天/.test(p)) score += 40;
+          if (/大于等于/.test(p) && /天/.test(p)) score += 15;
+          if (/月|年/.test(p)) score += 5;
+        }
+        score += rows.length * 0.5;
+        if (score > bestScore) {
+          bestScore = score;
+          bestRows = rows;
+        }
+      });
+      return bestRows && bestRows.length ? bestRows : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _rowsToRanges(rows) {
+    if (!rows || !rows.length) return null;
+    const parsed = [];
+    for (let i = 0; i < rows.length; i++) {
+      const range = _periodTextToRange(rows[i].period);
+      if (range) parsed.push({ ...range, rate: rows[i].rate });
+    }
+    if (parsed.length === rows.length) return parsed;
+    if (rows.length === 3) {
+      return [
+        { min: 0, max: 7, rate: rows[0].rate },
+        { min: 7, max: 30, rate: rows[1].rate },
+        { min: 30, max: Infinity, rate: rows[2].rate }
+      ];
+    }
+    if (rows.length === 2) {
+      return [
+        { min: 0, max: 7, rate: rows[0].rate },
+        { min: 7, max: Infinity, rate: rows[1].rate }
+      ];
+    }
+    if (rows.length === 1) {
+      return [{ min: 0, max: Infinity, rate: rows[0].rate }];
+    }
+    return parsed.length ? parsed : null;
+  }
+
+  function _pickRedemptionRate(ranges, holdingDays) {
+    if (!ranges || !ranges.length) return 0;
+    // 按 min 升序，避免 jjfl 表格行顺序与「先短后长」不一致时误命中 0% 等错误档
+    const sorted = [...ranges].sort((a, b) => (a.min || 0) - (b.min || 0));
+    const d = Math.max(0, Math.floor(Number(holdingDays)));
+    for (let i = 0; i < sorted.length; i++) {
+      const row = sorted[i];
+      const hi = row.max === Infinity || row.max === Number.POSITIVE_INFINITY ? Infinity : row.max;
+      if (d >= row.min && d < hi) return row.rate;
+    }
+    return sorted[sorted.length - 1].rate;
+  }
+
+  /** 买入日 → 卖出日 的自然日间隔（与费率表「小于7天」等档位一致） */
+  function _calendarDaysBetween(buyStr, sellStr) {
+    if (!buyStr || !sellStr) return 0;
+    const t0 = new Date(String(buyStr).slice(0, 10) + 'T12:00:00').getTime();
+    const t1 = new Date(String(sellStr).slice(0, 10) + 'T12:00:00').getTime();
+    if (isNaN(t0) || isNaN(t1)) return 0;
+    return Math.floor((t1 - t0) / 86400000);
+  }
+
+  /**
+   * 按操作日记中该基金买入/卖出顺序先进先出，逐批匹配持有天数与费率。
+   * 返回加权后的总手续费；minDays 为本次卖出涉及份额中「最短」持有天数（展示用）。
+   */
+  function _odFifoRedemptionFee(rec, ranges) {
+    const code = String(rec.code || '').trim();
+    const sellDate = rec.date;
+    const sellNav = parseFloat(rec.nav);
+    const sellShares = parseFloat(rec.shares);
+    if (!code || !sellDate || isNaN(sellNav) || sellNav <= 0 || isNaN(sellShares) || sellShares <= 0) return null;
+
+    const sorted = [...operationDiary];
+    if (!sorted.some(r => r.id === rec.id)) sorted.push(rec);
+    sorted.sort((a, b) => {
+      const d = String(a.date || '').localeCompare(String(b.date || ''));
+      if (d !== 0) return d;
+      return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+    });
+
+    const lots = [];
+    for (const r of sorted) {
+      if (r.id === rec.id) {
+        let need = sellShares;
+        let minDays = Infinity;
+        let totalFee = 0;
+        while (need > 1e-5 && lots.length) {
+          const lot = lots[0];
+          const take = Math.min(need, lot.shares);
+          const days = _calendarDaysBetween(lot.buyDate, sellDate);
+          minDays = Math.min(minDays, days);
+          const rate = _pickRedemptionRate(ranges, days);
+          totalFee += take * sellNav * rate;
+          lot.shares -= take;
+          need -= take;
+          if (lot.shares < 1e-5) lots.shift();
+        }
+        if (need > 1e-2) return null;
+        const gross = sellShares * sellNav;
+        return {
+          fee: parseFloat(totalFee.toFixed(2)),
+          minDays: minDays === Infinity ? null : minDays,
+          redemptionFeeRate: gross > 0 ? totalFee / gross : 0
+        };
+      }
+      if (r.side === 'buy') {
+        const nav = parseFloat(r.nav);
+        const money = parseFloat(r.money);
+        if (nav > 0 && money > 0) {
+          lots.push({ buyDate: r.date, shares: money / nav });
+        }
+      } else if (r.side === 'sell') {
+        let need = parseFloat(r.shares);
+        while (need > 1e-5 && lots.length) {
+          const lot = lots[0];
+          const take = Math.min(need, lot.shares);
+          lot.shares -= take;
+          need -= take;
+          if (lot.shares < 1e-5) lots.shift();
+        }
+      }
+    }
+    return null;
+  }
+
+  async function _fetchJjflPageHtml(code) {
+    const c = String(code || '').trim();
+    if (!c) return null;
+    const url = 'https://fundf10.eastmoney.com/jjfl_' + encodeURIComponent(c) + '.html';
+    try {
+      const r = await fetch(url, { cache: 'no-store' });
+      if (r.ok) return await r.text();
+    } catch (_) {}
+    try {
+      const proxy = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url);
+      const r2 = await fetch(proxy, { cache: 'no-store' });
+      if (r2.ok) return await r2.text();
+    } catch (_) {}
+    return null;
+  }
+
+  async function _fetchJjflRedemptionRanges(code) {
+    const c = String(code || '').trim();
+    if (!c) return _defaultRedemptionRanges();
+    const hit = _jjflRangesCache[c];
+    // parseV>=2：多表扫描赎回表；旧缓存可能误用认购表全 0%，需重拉
+    if (hit && hit.parseV >= 2 && Date.now() - hit.ts < 86400000) return hit.ranges;
+    const html = await _fetchJjflPageHtml(c);
+    const rows = html ? _parseJjflHtmlToRows(html) : null;
+    const ranges = rows ? _rowsToRanges(rows) : null;
+    const finalRanges = ranges && ranges.length ? ranges : _defaultRedemptionRanges();
+    _jjflRangesCache[c] = { ranges: finalRanges, ts: Date.now(), fromPage: !!(rows && ranges), parseV: 2 };
+    return finalRanges;
+  }
+
+  /**
+   * 手选阶段 → 用于费率档位匹配的「代表天数」。
+   * 取各档区间内部整数，避免用 0/7/30 恰好落在解析档边界或间隙时误匹配到 0% 档。
+   * 语义：lt7 ∈ [0,6]，7to30 ∈ [7,29]，ge30 ∈ [30,∞)。
+   */
+  function _odStageToRepDays(stage) {
+    if (stage === 'lt7') return 3;
+    if (stage === '7to30') return 15;
+    if (stage === 'ge30') return 30;
+    return null;
+  }
+
+  function _odSellStageFullLabel(stage) {
+    if (stage === 'lt7') return '0≤持有天数＜7';
+    if (stage === '7to30') return '7≤持有天数＜30';
+    if (stage === 'ge30') return '30≤持有天数';
+    return '';
+  }
+
+  /** 旧版手填整数天 → 阶段（仅展示用） */
+  function _odInferStageFromDays(days) {
+    const d = Math.floor(Number(days));
+    if (isNaN(d) || d < 0) return null;
+    if (d < 7) return 'lt7';
+    if (d < 30) return '7to30';
+    return 'ge30';
+  }
+
+  function _odComputeSellRedemption(rec, ranges) {
+    const sh = parseFloat(rec.shares);
+    const nv = parseFloat(rec.nav);
+    const days = rec.sellHoldingDays;
+    if (isNaN(sh) || sh <= 0 || isNaN(nv) || nv <= 0 || days == null || isNaN(days)) {
+      return { fee: null, rate: null };
+    }
+    const gross = sh * nv;
+    const rate = _pickRedemptionRate(ranges, days);
+    const fee = parseFloat((gross * rate).toFixed(2));
+    return { fee, rate };
+  }
+
+  async function _odRecalcAllSellFees() {
+    const sells = operationDiary.filter(r =>
+      r.side === 'sell' && r.nav != null && !isNaN(r.nav) && r.nav > 0
+        && r.shares != null && !isNaN(r.shares) && r.shares > 0);
+    if (sells.length === 0) return;
+    const codes = [...new Set(sells.map(r => String(r.code || '').trim()).filter(Boolean))];
+    const rangeMap = Object.create(null);
+    for (let i = 0; i < codes.length; i++) {
+      rangeMap[codes[i]] = await _fetchJjflRedemptionRanges(codes[i]);
+    }
+    let changed = false;
+    for (const rec of sells) {
+      const code = String(rec.code || '').trim();
+      const ranges = rangeMap[code] || _defaultRedemptionRanges();
+      const manual = rec.sellHoldingDaysSource === 'manual'
+        && rec.sellHoldingDays != null && !isNaN(rec.sellHoldingDays);
+      if (manual) {
+        const o = _odComputeSellRedemption(rec, ranges);
+        if (o.fee != null && (rec.redemptionFee !== o.fee || rec.redemptionFeeRate !== o.rate)) {
+          rec.redemptionFee = o.fee;
+          rec.redemptionFeeRate = o.rate;
+          changed = true;
+        }
+      } else {
+        const fifo = _odFifoRedemptionFee(rec, ranges);
+        if (fifo) {
+          if (rec.redemptionFee !== fifo.fee || rec.redemptionFeeRate !== fifo.redemptionFeeRate
+              || rec.sellHoldingDays !== fifo.minDays || rec.sellHoldingDaysSource !== 'fifo') {
+            rec.redemptionFee = fifo.fee;
+            rec.redemptionFeeRate = fifo.redemptionFeeRate;
+            rec.sellHoldingDays = fifo.minDays;
+            rec.sellHoldingDaysSource = 'fifo';
+            rec.sellHoldingStage = null;
+            changed = true;
+          }
+        } else {
+          if (rec.redemptionFee != null || rec.redemptionFeeRate != null) {
+            rec.redemptionFee = null;
+            rec.redemptionFeeRate = null;
+            changed = true;
+          }
+          if (rec.sellHoldingDaysSource === 'fifo') {
+            rec.sellHoldingDays = null;
+            rec.sellHoldingDaysSource = null;
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) {
+      saveOperationDiary();
+      renderOperationDiary();
+    }
   }
 
   function _odEsc(s) {
@@ -2752,25 +4038,66 @@
   }
 
   function _odNavTypeLabel(t) {
-    if (t === 'confirmed') return '确认净值';
     if (t === 'estimate') return '估值';
-    return '手工';
+    return '确认净值';
   }
 
-  /** 卖出：份额×净值；估值为预估回款，确认/手工为实际回款（以表内参考净值计算） */
+  /** 卖出：份额×净值；若有赎回费则显示总额/净额 */
   function _odFormatSellProceedsCell(r) {
     const sh = parseFloat(r.shares);
     const nv = parseFloat(r.nav);
     if (isNaN(sh) || sh <= 0 || isNaN(nv) || nv <= 0) return '—';
-    const yuan = sh * nv;
-    const moneyStr = '¥' + Number(yuan).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const gross = sh * nv;
+    const grossStr = '¥' + Number(gross).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fee = parseFloat(r.redemptionFee);
+    const hasFee = fee != null && !isNaN(fee) && fee >= 0 && (r.sellHoldingDays != null && !isNaN(r.sellHoldingDays));
     if (r.navType === 'estimate') {
-      return `<span class="od-sub">预估</span> ${moneyStr}`;
+      if (hasFee && fee > 0) {
+        const net = gross - fee;
+        const netStr = '¥' + Number(net).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `<span class="od-sub">预估</span> ${grossStr}<br/><span class="od-sub">净额</span> ${netStr}`;
+      }
+      return `<span class="od-sub">预估</span> ${grossStr}`;
     }
-    return `<span class="od-sub">实际</span> ${moneyStr}`;
+    if (hasFee && fee > 0) {
+      const net = gross - fee;
+      const netStr = '¥' + Number(net).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `<span class="od-sub">总额</span> ${grossStr}<br/><span class="od-sub">净额</span> ${netStr}`;
+    }
+    if (hasFee && fee === 0) {
+      return `<span class="od-sub">实际</span> ${grossStr}<br/><span class="od-sub">赎回费 ¥0.00</span>`;
+    }
+    return `<span class="od-sub">实际</span> ${grossStr}`;
+  }
+
+  function _odFormatRedemptionFeeCell(r) {
+    if (r.side !== 'sell') return '—';
+    if (r.sellHoldingDays == null || isNaN(r.sellHoldingDays)) {
+      return '<span class="od-nav-type">—</span>';
+    }
+    const fee = parseFloat(r.redemptionFee);
+    if (fee == null || isNaN(fee)) {
+      return '<span class="od-nav-type">…</span>';
+    }
+    const rate = r.redemptionFeeRate;
+    const rateStr = (rate != null && !isNaN(rate)) ? ` · ${(rate * 100).toFixed(2)}%` : '';
+    const money = '¥' + Number(fee).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let dayLine;
+    if (r.sellHoldingDaysSource === 'fifo') {
+      dayLine = `最短${r.sellHoldingDays}天`;
+    } else {
+      const st = r.sellHoldingStage || _odInferStageFromDays(r.sellHoldingDays);
+      dayLine = st ? _odSellStageFullLabel(st) : `${r.sellHoldingDays}天`;
+    }
+    return `${money}<br/><span class="od-nav-type">${dayLine}${rateStr}</span>`;
   }
 
   function _odRefreshSellPreview() {
+    clearTimeout(_odSellPreviewTimer);
+    _odSellPreviewTimer = setTimeout(function () { void _odRefreshSellPreviewAsync(); }, 380);
+  }
+
+  async function _odRefreshSellPreviewAsync() {
     const el = document.getElementById('od_m_sell_preview');
     if (!el) return;
     const sellEl = document.querySelector('input[name="od_m_side"][value="sell"]');
@@ -2782,16 +4109,61 @@
     const navInp = document.getElementById('od_m_nav');
     const nv = parseFloat(navInp && navInp.value);
     const nt = (navInp && navInp.dataset.odNavType) || 'manual';
+    const code = (document.getElementById('od_m_code').value || '').trim();
+    const stEl = document.getElementById('od_m_hold_stage');
+    const stage = stEl ? stEl.value : '';
+    const holdDays = _odStageToRepDays(stage);
     if (isNaN(sh) || sh <= 0 || isNaN(nv) || nv <= 0) {
       el.textContent = '';
       return;
     }
-    const yuan = sh * nv;
-    const moneyStr = '¥' + Number(yuan).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const gross = sh * nv;
+    const moneyStr = '¥' + Number(gross).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    let extra = '';
+    const opDate = (document.getElementById('od_m_date').value || '').trim() || getTodayStr();
+    if (code) {
+      el.textContent = '正在估算赎回费…';
+      try {
+        const ranges = await _fetchJjflRedemptionRanges(code);
+        if (holdDays !== null && holdDays >= 0) {
+          const o = _odComputeSellRedemption(
+            { shares: sh, nav: nv, sellHoldingDays: holdDays },
+            ranges
+          );
+          if (o.fee != null) {
+            const rateStr = (o.rate != null && !isNaN(o.rate)) ? `，费率 ${(o.rate * 100).toFixed(2)}%` : '';
+            const net = gross - o.fee;
+            const netStr = '¥' + Number(net).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const stLab = _odSellStageFullLabel(stage);
+            extra = ` · 赎回费约 ¥${Number(o.fee).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}（${stLab}）${rateStr}，净额约 ${netStr}`;
+          }
+        } else {
+          const tempRec = {
+            id: '_od_preview_sell',
+            code,
+            date: opDate,
+            shares: sh,
+            nav: nv,
+            side: 'sell',
+            createdAt: new Date().toISOString()
+          };
+          const fifo = _odFifoRedemptionFee(tempRec, ranges);
+          if (fifo) {
+            const net = gross - fifo.fee;
+            const netStr = '¥' + Number(net).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            extra = ` · 赎回费约 ¥${Number(fifo.fee).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}（日记FIFO，最短${fifo.minDays}天）· 净额约 ${netStr}`;
+          } else {
+            extra = ' · 日记中买入记录不足，无法 FIFO 估算，请选择持有阶段或补全买入记录';
+          }
+        }
+      } catch (_) {
+        extra = '';
+      }
+    }
     if (nt === 'estimate') {
-      el.textContent = '预估卖出回款约 ' + moneyStr + '（确认净值公布后自动按实际净值重算）';
+      el.textContent = '预估卖出回款约 ' + moneyStr + extra + '（确认净值公布后自动按实际净值重算）';
     } else {
-      el.textContent = '按当前参考净值，卖出回款约 ' + moneyStr;
+      el.textContent = '按当前参考净值，卖出回款约 ' + moneyStr + extra;
     }
   }
 
@@ -2801,6 +4173,8 @@
     if (!label || !inp) return;
     const sellEl = document.querySelector('input[name="od_m_side"][value="sell"]');
     const sell = sellEl && sellEl.checked;
+    const holdWrap = document.getElementById('od_m_hold_wrap');
+    if (holdWrap) holdWrap.style.display = sell ? '' : 'none';
     if (sell) {
       label.textContent = '份额';
       inp.placeholder = '卖出或减仓的份额';
@@ -2813,10 +4187,66 @@
     _odRefreshSellPreview();
   }
 
+  function _odPagerBarHtml(total, totalPages) {
+    const sel20 = _odPageSize === 20 ? ' selected' : '';
+    const sel50 = _odPageSize === 50 ? ' selected' : '';
+    const prevDis = _odPage <= 1 ? ' disabled' : '';
+    const nextDis = _odPage >= totalPages ? ' disabled' : '';
+    return '<div class="od-pager-bar">' +
+      '<span class="od-pager-meta">共 ' + total + ' 条 · 第 ' + _odPage + ' / ' + totalPages + ' 页</span>' +
+      '<div class="od-pager-ctrl">' +
+      '<span class="od-pager-label">每页</span>' +
+      '<select id="odPagerSize" class="od-pager-select" title="每页条数" onchange="_odPagerSetSize(this.value)">' +
+      '<option value="20"' + sel20 + '>20 条</option>' +
+      '<option value="50"' + sel50 + '>50 条</option>' +
+      '</select>' +
+      '<button type="button" class="btn btn-cancel od-pager-btn"' + prevDis + ' onclick="_odPagerPrev()">上一页</button>' +
+      '<button type="button" class="btn btn-cancel od-pager-btn"' + nextDis + ' onclick="_odPagerNext()">下一页</button>' +
+      '<div class="od-pager-jump-group">' +
+      '<span class="od-pager-label">跳至</span>' +
+      '<input id="odPagerJump" class="od-pager-input" type="number" min="1" max="' + totalPages + '" value="' + _odPage + '" ' +
+      'onkeydown="if(event.key===\'Enter\'){_odPagerJump();}"/>' +
+      '<span class="od-pager-label">页</span>' +
+      '<button type="button" class="btn btn-cancel od-pager-btn" onclick="_odPagerJump()">跳转</button>' +
+      '</div>' +
+      '</div></div>';
+  }
+
+  window._odPagerSetSize = function (sz) {
+    const n = parseInt(sz, 10);
+    if (n !== 20 && n !== 50) return;
+    _odPageSize = n;
+    try { localStorage.setItem('od_pager_size', String(n)); } catch (_) {}
+    _odPage = 1;
+    renderOperationDiary();
+  };
+  window._odPagerPrev = function () {
+    if (_odPage > 1) {
+      _odPage--;
+      renderOperationDiary();
+    }
+  };
+  window._odPagerNext = function () {
+    if (_odPage < _odPagerTotalPages) {
+      _odPage++;
+      renderOperationDiary();
+    }
+  };
+  window._odPagerJump = function () {
+    const el = document.getElementById('odPagerJump');
+    if (!el) return;
+    let p = parseInt(String(el.value).trim(), 10);
+    if (isNaN(p)) return;
+    p = Math.max(1, Math.min(_odPagerTotalPages, p));
+    _odPage = p;
+    renderOperationDiary();
+  };
+
   function renderOperationDiary() {
     const tbody = document.getElementById('odTbody');
     const empty = document.getElementById('odEmpty');
     const wrap = document.getElementById('odTableWrap');
+    const pagerEl = document.getElementById('odPager');
     if (!tbody) return;
     const sorted = [...operationDiary].sort((a, b) => {
       const d = (b.date || '').localeCompare(a.date || '');
@@ -2827,11 +4257,26 @@
       tbody.innerHTML = '';
       if (wrap) wrap.style.display = 'none';
       if (empty) empty.style.display = 'block';
+      if (pagerEl) {
+        pagerEl.style.display = 'none';
+        pagerEl.innerHTML = '';
+      }
       return;
     }
     if (wrap) wrap.style.display = '';
     if (empty) empty.style.display = 'none';
-    tbody.innerHTML = sorted.map(r => {
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / _odPageSize));
+    _odPagerTotalPages = totalPages;
+    if (_odPage > totalPages) _odPage = totalPages;
+    if (_odPage < 1) _odPage = 1;
+    const start = (_odPage - 1) * _odPageSize;
+    const pageRows = sorted.slice(start, start + _odPageSize);
+    if (pagerEl) {
+      pagerEl.style.display = '';
+      pagerEl.innerHTML = _odPagerBarHtml(total, totalPages);
+    }
+    tbody.innerHTML = pageRows.map(r => {
       const sideBuy = r.side === 'buy';
       const badge = sideBuy ? 'od-badge-buy' : 'od-badge-sell';
       const sideTxt = sideBuy ? '买入' : '卖出';
@@ -2845,6 +4290,7 @@
       }
       const nav = r.nav != null && !isNaN(r.nav) ? Number(r.nav).toFixed(4) : '--';
       const sellProceedsCell = sideBuy ? '—' : _odFormatSellProceedsCell(r);
+      const redemptionFeeCell = sideBuy ? '—' : _odFormatRedemptionFeeCell(r);
       let syncCell;
       if (r.holdingsSynced) syncCell = '<span style="color:var(--loss);font-size:12px;">已同步</span>';
       else if (r.needsConfirmToSync) syncCell = '<span style="color:var(--text-secondary);font-size:12px;">待确认净值</span>';
@@ -2857,9 +4303,12 @@
         <td>${qtyDisplay}</td>
         <td>${nav}</td>
         <td>${sellProceedsCell}</td>
+        <td>${redemptionFeeCell}</td>
         <td><span class="od-nav-type">${_odNavTypeLabel(r.navType)}</span></td>
         <td>${syncCell}</td>
-        <td><button type="button" class="btn btn-remove" style="padding:4px 10px;font-size:12px;" onclick="_odDelete('${_odEsc(r.id)}')">删除</button></td>
+        <td><div class="op-btns od-op-btns">` +
+          `<button type="button" class="btn btn-edit" onclick="_odOpenEdit('${_odEsc(r.id)}')">编辑</button>` +
+          `<button type="button" class="btn btn-remove" onclick="_odDelete('${_odEsc(r.id)}')">删除</button></div></td>
       </tr>`;
     }).join('');
   }
@@ -2874,8 +4323,12 @@
   }
 
   window._odOpenAdd = function () {
+    _odEditingId = null;
+    const titleEl = document.getElementById('odModalTitle');
+    if (titleEl) titleEl.textContent = '添加操作记录';
     _odRebuildPickOptions();
-    document.getElementById('od_m_date').value = getTodayStr();
+    _odInitFlatpickr();
+    _odSetOdModalDate(getTodayStr());
     document.getElementById('od_m_pick').value = '';
     document.getElementById('od_m_code').value = '';
     document.getElementById('od_m_name').value = '';
@@ -2885,6 +4338,8 @@
     navEl.value = '';
     delete navEl.dataset.odNavType;
     document.getElementById('od_m_navhint').textContent = '';
+    const stEl = document.getElementById('od_m_hold_stage');
+    if (stEl) stEl.value = '';
     document.querySelector('input[name="od_m_side"][value="buy"]').checked = true;
     _odUpdateQtyField();
     document.getElementById('od_m_code').readOnly = false;
@@ -2893,7 +4348,58 @@
   };
 
   window._odCloseModal = function () {
+    _odEditingId = null;
     document.getElementById('odModal').classList.remove('open');
+  };
+
+  window._odOpenEdit = function (id) {
+    const rec = operationDiary.find(r => r.id === id);
+    if (!rec) { showToast('记录不存在', 'error'); return; }
+    _odEditingId = id;
+    const titleEl = document.getElementById('odModalTitle');
+    if (titleEl) titleEl.textContent = '编辑操作记录';
+    _odRebuildPickOptions();
+    const pick = document.getElementById('od_m_pick');
+    const codeTrim = String(rec.code || '').trim();
+    if (pick && codeTrim && [...pick.options].some(o => o.value === codeTrim)) pick.value = codeTrim;
+    else if (pick) pick.value = '';
+    _odInitFlatpickr();
+    _odSetOdModalDate(rec.date || getTodayStr());
+    document.getElementById('od_m_code').value = rec.code || '';
+    document.getElementById('od_m_name').value = rec.name || '';
+    document.getElementById('od_m_tag').value = rec.tag || '';
+    if (rec.side === 'sell') {
+      document.querySelector('input[name="od_m_side"][value="sell"]').checked = true;
+    } else {
+      document.querySelector('input[name="od_m_side"][value="buy"]').checked = true;
+    }
+    _odUpdateQtyField();
+    if (rec.side === 'sell') {
+      document.getElementById('od_m_money').value = rec.shares != null && !isNaN(rec.shares) ? String(rec.shares) : '';
+    } else {
+      document.getElementById('od_m_money').value = rec.money != null && !isNaN(rec.money) ? String(rec.money) : '';
+    }
+    const navEl = document.getElementById('od_m_nav');
+    navEl.value = rec.nav != null && !isNaN(rec.nav) ? String(rec.nav) : '';
+    if (rec.navType === 'estimate' || rec.navType === 'confirmed') {
+      navEl.dataset.odNavType = rec.navType;
+    } else {
+      delete navEl.dataset.odNavType;
+    }
+    document.getElementById('od_m_navhint').textContent = '';
+    const stEl = document.getElementById('od_m_hold_stage');
+    if (stEl) stEl.value = rec.sellHoldingStage || '';
+    const cEl = document.getElementById('od_m_code');
+    const nEl = document.getElementById('od_m_name');
+    if (pick && pick.value === codeTrim && codeTrim) {
+      cEl.readOnly = true;
+      nEl.readOnly = true;
+    } else {
+      cEl.readOnly = false;
+      nEl.readOnly = false;
+    }
+    document.getElementById('odModal').classList.add('open');
+    _odRefreshSellPreview();
   };
 
   (function () {
@@ -2916,6 +4422,7 @@
         tEl.value = f.tag || '';
         cEl.readOnly = true; nEl.readOnly = true;
       }
+      _odRefreshSellPreview();
     });
   })();
 
@@ -2925,8 +4432,12 @@
     });
     const moneyInp = document.getElementById('od_m_money');
     const navInp = document.getElementById('od_m_nav');
+    const holdSel = document.getElementById('od_m_hold_stage');
+    const codeInp = document.getElementById('od_m_code');
     if (moneyInp) moneyInp.addEventListener('input', _odRefreshSellPreview);
     if (navInp) navInp.addEventListener('input', _odRefreshSellPreview);
+    if (holdSel) holdSel.addEventListener('change', _odRefreshSellPreview);
+    if (codeInp) codeInp.addEventListener('input', _odRefreshSellPreview);
   })();
 
   window._odFillNavFromHoldings = function () {
@@ -2979,10 +4490,29 @@
       showToast('操作日期不能晚于今天', 'error');
       return;
     }
+    let sellHoldingDays = null;
+    let sellHoldingStage = null;
+    if (isSell) {
+      const stEl = document.getElementById('od_m_hold_stage');
+      const st = stEl ? stEl.value : '';
+      if (st) {
+        sellHoldingStage = st;
+        sellHoldingDays = _odStageToRepDays(st);
+      }
+    }
     // 凡「估值」均等该日确认净值落库后再写入持仓，避免用盘中预估提前改仓位
     const needsConfirmToSync = (navType === 'estimate');
+    const editingId = _odEditingId;
+    let oldIdx = -1;
+    let oldRec = null;
+    if (editingId) {
+      oldIdx = operationDiary.findIndex(r => r.id === editingId);
+      if (oldIdx < 0) { showToast('记录不存在', 'error'); return; }
+      oldRec = operationDiary[oldIdx];
+    }
+
     const rec = {
-      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('od_' + Date.now() + '_' + Math.random().toString(36).slice(2)),
+      id: oldRec ? oldRec.id : ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('od_' + Date.now() + '_' + Math.random().toString(36).slice(2))),
       date,
       code,
       name,
@@ -2994,9 +4524,76 @@
       navType,
       holdingsSynced: false,
       needsConfirmToSync,
-      createdAt: new Date().toISOString()
+      createdAt: oldRec ? oldRec.createdAt : new Date().toISOString()
     };
+    if (isSell && sellHoldingStage && sellHoldingDays != null) {
+      rec.sellHoldingStage = sellHoldingStage;
+      rec.sellHoldingDays = sellHoldingDays;
+      rec.sellHoldingDaysSource = 'manual';
+    }
+
+    if (editingId && oldRec) {
+      if (oldRec.holdingsSynced && !_odDiaryAffectsSyncedHoldings(oldRec, rec)) {
+        const merged = Object.assign({}, oldRec, rec, {
+          holdingsSynced: true,
+          needsConfirmToSync: oldRec.needsConfirmToSync,
+          id: oldRec.id,
+          createdAt: oldRec.createdAt
+        });
+        if (isSell && !sellHoldingStage) {
+          delete merged.sellHoldingStage;
+          delete merged.sellHoldingDays;
+          delete merged.sellHoldingDaysSource;
+        }
+        if (isSell && sellHoldingStage && sellHoldingDays != null) {
+          merged.sellHoldingStage = sellHoldingStage;
+          merged.sellHoldingDays = sellHoldingDays;
+          merged.sellHoldingDaysSource = 'manual';
+        }
+        operationDiary[oldIdx] = merged;
+        saveOperationDiary();
+        renderOperationDiary();
+        void _odRecalcAllSellFees();
+        delete navInp.dataset.odNavType;
+        _odCloseModal();
+        showToast('已更新', 'success');
+        return;
+      }
+      if (oldRec.holdingsSynced && _odDiaryAffectsSyncedHoldings(oldRec, rec)) {
+        if (!_diaryRevertHoldingsEffect(oldRec)) return;
+      }
+      operationDiary[oldIdx] = rec;
+      if (!needsConfirmToSync) {
+        if (!_diaryApplyToHoldings(rec)) {
+          operationDiary[oldIdx] = oldRec;
+          const tmp = Object.assign({}, oldRec);
+          tmp.holdingsSynced = false;
+          if (_diaryApplyToHoldings(tmp)) {
+            operationDiary[oldIdx] = tmp;
+            saveOperationDiary();
+            render();
+            renderRanking();
+            updateSummary();
+            renderOperationDiary();
+            showToast('新内容无法同步到持仓，已保留原记录', 'error');
+          } else {
+            showToast('保存失败，请手动核对持仓与本条记录', 'error');
+          }
+          return;
+        }
+      } else {
+        saveOperationDiary();
+        renderOperationDiary();
+      }
+      void _odRecalcAllSellFees();
+      delete navInp.dataset.odNavType;
+      _odCloseModal();
+      showToast(needsConfirmToSync ? '已保存，确认净值公布后请刷新估值以写入持仓' : '已更新并同步持仓', 'success');
+      return;
+    }
+
     operationDiary.push(rec);
+    _odPage = 1;
     if (!needsConfirmToSync) {
       if (!_diaryApplyToHoldings(rec)) {
         operationDiary.pop();
@@ -3006,6 +4603,7 @@
       saveOperationDiary();
       renderOperationDiary();
     }
+    void _odRecalcAllSellFees();
     delete navInp.dataset.odNavType;
     _odCloseModal();
     showToast(needsConfirmToSync ? '已保存，确认净值公布后请刷新估值以写入持仓' : '已保存并同步持仓', 'success');
@@ -3133,6 +4731,7 @@
               if (f.costBasisLocked  === undefined) f.costBasisLocked  = false;
               if (f.holdingShares    === undefined) f.holdingShares    = null;
               if (f.holdingSharesLocked === undefined) f.holdingSharesLocked = false;
+              if (f.prevNavDate === undefined) f.prevNavDate = null;
             });
             localStorage.setItem('fund_calc_v6', JSON.stringify(funds));
           }
@@ -3144,6 +4743,7 @@
               if (w.confirmedNav  === undefined) w.confirmedNav  = null;
               if (w.jzrq          === undefined) w.jzrq          = null;
               if (w.tag           === undefined) w.tag           = null;
+              if (w.prevNavDate === undefined) w.prevNavDate = null;
             });
             localStorage.setItem('fund_watchlist_v1', JSON.stringify(watchlist));
           }
@@ -3245,6 +4845,11 @@
         document.getElementById('authModal').classList.remove('open');
         document.getElementById('appContent').style.display = '';
         render(); updateSummary();
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            if (typeof window._aiRepositionFabForLayout === 'function') window._aiRepositionFabForLayout();
+          });
+        });
         if (!_sbLoaded) {
           await new Promise(r => setTimeout(r, 320));
           if (_sbUser) await _sbLoadCloud();
@@ -3620,7 +5225,7 @@
     const tag  = document.getElementById('wTag').value.trim() || null;
     if (!/^\d{6}$/.test(code))                return showToast('请输入正确的 6 位基金代码', 'error');
     if (watchlist.some(w => w.code === code)) return showToast('该基金已在监控列表', 'error');
-    watchlist.push({ code, name: code, tag, prevNav: null, gsz: null, gszzl: null, gztime: null, jzrq: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, loading: false, error: false });
+    watchlist.push({ code, name: code, tag, prevNav: null, prevNavDate: null, gsz: null, gszzl: null, gztime: null, jzrq: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, loading: false, error: false });
     saveWatchlist();
     renderRanking();
     _closeWatchModal();
@@ -3671,15 +5276,13 @@
     tbody.innerHTML = sorted.map((item, idx) => {
       const rank = idx + 1;
       const rCls = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
-      const wNavDate = item.confirmedDate || item.jzrq || '';
+      const navDateStr = item.prevNavDate || item.confirmedDate || item.jzrq;
+      const todayMD = fmtMD(getTodayStr());
+      const metaTime = (!item.navConfirmed && item.gztime)
+        ? ' &nbsp;·&nbsp; <span class="fund-meta-note">估值 ' + todayMD + '</span>' : '';
       const confirmedTag = item.navConfirmed
         ? ' &nbsp;<span class="conf-badge">✓ 已出净值</span>'
-        : (wNavDate ? ' &nbsp;<span style="color:var(--text-muted);font-size:11px;">净值 ' + fmtMD(wNavDate) + '</span>' : '');
-      const hasGsz = !item.navConfirmed && item.gsz !== null && !isNaN(item.gsz);
-      const _preMarketW = !item.navConfirmed && isPreMarketNow();
-      const meta = _preMarketW
-        ? ' &nbsp;<span class="premkt-badge">盘前休市</span>'
-        : hasGsz ? ' &nbsp;<span class="est-badge">盘中估值</span>' : '';
+        : (navDateStr ? ' &nbsp;<span class="fund-meta-note">净值 ' + fmtMD(navDateStr) + '</span>' : '');
 
       const hasTodayDataW = _watchHasTodayNavData(item);
 
@@ -3704,10 +5307,10 @@
       return '<tr>' +
         '<td><span class="rank-badge ' + rCls + '">' + rank + '</span></td>' +
         '<td><div class="fund-name"><span class="fund-name-text" data-tip="' + (item.name !== item.code ? item.name : item.code) + '">' + (item.name !== item.code ? item.name : item.code) + '</span>' + wTagHtml + '</div>' +
-        '<div class="fund-meta">' + item.code + meta + confirmedTag + '</div></td>' +
-        '<td>' + navCell + '</td>' +
+        '<div class="fund-meta">' + item.code + metaTime + confirmedTag + '</div></td>' +
         '<td>' + changeCell + '</td>' +
         '<td>' + prevCell + '</td>' +
+        '<td>' + navCell + '</td>' +
         '<td><button class="btn btn-remove" onclick="_removeWatch(\'' + item.code + '\')">移除</button></td>' +
         '</tr>';
     }).join('');
@@ -3840,13 +5443,8 @@
       const el = document.getElementById(id);
       if (el) el.classList.toggle('masked', !!_hiddenCols[key]);
     });
-    // 按钮图标
-    const icon = document.getElementById('privacyIcon');
-    if (_isAnyHidden()) {
-      icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-    } else {
-      icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-    }
+    const pbtn = document.getElementById('privacyBtn');
+    if (pbtn) pbtn.className = 'privacy-toggle' + (_isAnyHidden() ? ' on' : '');
   }
 
   // 点击其他区域关闭菜单
@@ -3934,29 +5532,29 @@
 
       // 持仓成本格：显示每份成本净值（单价，4位小数）
       const cbLockIcon = f.costBasisLocked
-        ? ' <span style="color:var(--text-muted);font-size:10px;" title="已按确认净值锁定，点编辑可修改">🔒</span>'
-        : ' <span style="color:var(--text-muted);font-size:10px;" title="当前为预估净值，出确认净值后自动锁定">预估</span>';
+        ? ' <span class="cb-value-hint" title="已按确认净值锁定，点编辑可修改">🔒</span>'
+        : ' <span class="cb-value-hint" title="当前为预估净值，出确认净值后自动锁定">预估</span>';
       const costBasisCell = f.costBasis !== null
         ? '<span class="cb-value">' + fmt(f.costBasis, 4) + cbLockIcon + '</span>'
         : '<span class="cb-empty">待刷新</span>';
 
       // 持仓份额格：显示实际份额（2位小数），与持仓成本同步锁定
       const shLockIcon = f.holdingSharesLocked
-        ? ' <span style="color:var(--text-muted);font-size:10px;" title="已锁定，点编辑可修改">🔒</span>'
-        : ' <span style="color:var(--text-muted);font-size:10px;" title="当前为预估份额，出确认净值后自动锁定">预估</span>';
+        ? ' <span class="cb-value-hint" title="已锁定，点编辑可修改">🔒</span>'
+        : ' <span class="cb-value-hint" title="当前为预估份额，出确认净值后自动锁定">预估</span>';
       const holdingSharesCell = f.holdingShares !== null
         ? '<span class="cb-value">' + fmt(f.holdingShares, 2) + shLockIcon + '</span>'
         : '<span class="cb-empty">待刷新</span>';
 
-      // 净值日期：优先用 confirmedDate（从 pingzhongdata 拿到的准确日期），否则 jzrq（API 可能滞后）
-      const navDateStr = f.confirmedDate || f.jzrq;
+      // 净值日期：与「昨日净值」数值同源（prevNavDate），避免 fundgz jzrq 滞后少显示一天
+      const navDateStr = f.prevNavDate || f.confirmedDate || f.jzrq;
       const confirmedTag = f.navConfirmed
         ? ' &nbsp;<span class="conf-badge">✓ 已出净值</span>'
-        : (navDateStr ? ' &nbsp;<span style="color:var(--text-muted);font-size:11px;">净值 ' + fmtMD(navDateStr) + '</span>' : '');
+        : (navDateStr ? ' &nbsp;<span class="fund-meta-note">净值 ' + fmtMD(navDateStr) + '</span>' : '');
       // 估值时间：只显示日期 MM.DD，已出净值则不展示估值行
       const todayMD = fmtMD(getTodayStr());
       const metaTime = (!f.navConfirmed && f.gztime)
-        ? ' &nbsp;·&nbsp; <span style="color:var(--text-muted);font-size:11px;">估值 ' + todayMD + '</span>' : '';
+        ? ' &nbsp;·&nbsp; <span class="fund-meta-note">估值 ' + todayMD + '</span>' : '';
 
       const tagHtml = f.tag
         ? '<span class="fund-tag" onclick="_editTag(\'' + f.code + '\')" title="点击修改标签">' + f.tag + '</span>'
@@ -4064,8 +5662,24 @@
   function updateNavModeUI() {
     const badge  = document.getElementById('navModeBadge');
     const thNav  = document.getElementById('thTodayNav');
+    const watchThNav = document.getElementById('watchThTodayNav');
     const refBtn = document.getElementById('refreshBtn');
     if (!badge) return;
+
+    function syncWatchAndMrBadges() {
+      const wBadge = document.getElementById('watchModeBadge');
+      if (wBadge) { wBadge.className = badge.className; wBadge.innerHTML = badge.innerHTML; }
+      const mrBadge = document.getElementById('mrNavModeBadge');
+      if (mrBadge) {
+        mrBadge.className = badge.className;
+        mrBadge.innerHTML = badge.innerHTML;
+      }
+      const sectorNB = document.getElementById('sectorNavModeBadge');
+      if (sectorNB) {
+        sectorNB.className = badge.className;
+        sectorNB.innerHTML = badge.innerHTML;
+      }
+    }
 
     // 任意基金 API 已确认（jzrq == 今天）→ 显示"已出净值"
     const confirmedCount = funds.filter(f => f.navConfirmed).length;
@@ -4074,7 +5688,9 @@
       badge.className = 'nav-mode-badge confirmed';
       badge.innerHTML = '<span class="badge-dot"></span>' + label;
       if (thNav)  thNav.firstChild.textContent = '今日净值';
+      if (watchThNav) watchThNav.firstChild.textContent = '今日净值';
       if (refBtn) refBtn.textContent = '刷新净值';
+      syncWatchAndMrBadges();
       return;
     }
 
@@ -4088,7 +5704,9 @@
       badge.className = 'nav-mode-badge estimated';
       badge.innerHTML = '<span class="badge-dot"></span>非交易日';
       if (thNav)  thNav.firstChild.textContent = '今日估值';
+      if (watchThNav) watchThNav.firstChild.textContent = '今日估值';
       if (refBtn) refBtn.textContent = '刷新估值';
+      syncWatchAndMrBadges();
       return;
     }
 
@@ -4108,11 +5726,10 @@
     }
 
     if (thNav)  thNav.firstChild.textContent = '今日估值';
+    if (watchThNav) watchThNav.firstChild.textContent = '今日估值';
     if (refBtn) refBtn.textContent = '刷新估值';
 
-    // 同步涨跌行情页徽章
-    const wBadge = document.getElementById('watchModeBadge');
-    if (wBadge) { wBadge.className = badge.className; wBadge.innerHTML = badge.innerHTML; }
+    syncWatchAndMrBadges();
   }
 
   /* ── Auto refresh timer ── */
@@ -4213,7 +5830,7 @@
   window._mrAddToWatch    = (code, name, tag) => {
     if (funds.some(f => f.code === code)) return showToast('该基金已在持仓', 'error');
     if (watchlist.some(w => w.code === code)) return showToast('该基金已在监控列表', 'error');
-    watchlist.push({ code, name: name || code, tag: tag || null, prevNav: null, gsz: null, gszzl: null, gztime: null, jzrq: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, loading: false, error: false });
+    watchlist.push({ code, name: name || code, tag: tag || null, prevNav: null, prevNavDate: null, gsz: null, gszzl: null, gztime: null, jzrq: null, confirmedNav: null, navConfirmed: false, confirmedDate: null, loading: false, error: false });
     saveWatchlist();
     renderRanking();
     showToast('已添加监控', 'success');
@@ -4225,6 +5842,7 @@
   loadWatchlist();
   loadPnlHistory();
   loadOperationDiary();
+  _odInitFlatpickr();
   render();
   updateSummary();
   updateNavModeUI();
@@ -4241,6 +5859,7 @@
       } catch (_) {}
     })();
   }
+  setTimeout(() => _diaryRepairWrongConfirmedNavs(), 5000);
 
   /* ── 列宽拖拽 ── */
   (function initColResize() {
@@ -4487,6 +6106,7 @@
           code: d.fundcode, name: d.name || d.fundcode,
           nav, ret: gszzl, confirmed,
           jzrq: jzrqToday ? jzrq : (gztimeToday ? todayStr : jzrq),
+          gztime: gztime || null,
         });
       };
 
@@ -4525,6 +6145,10 @@
     if (_mrBusy) return;
     _mrBusy = true;
 
+    const mrBtn = document.getElementById('mrRefreshBtn');
+    let armMrBtn = false;
+
+    try {
     const body = document.getElementById('mrBody');
     const foot = document.getElementById('mrFoot');
     foot.textContent = '';
@@ -4543,9 +6167,14 @@
         : false;
       if (!cacheStale) {
         _mrRender(body, foot, _mrCache);
-        _mrBusy = false;
         return;
       }
+    }
+
+    if (mrBtn) {
+      mrBtn.disabled = true;
+      mrBtn.innerHTML = '<span class="spinner"></span>&nbsp;更新中…';
+      armMrBtn = true;
     }
 
     const pool = _mrGetPool();
@@ -4595,8 +6224,14 @@
         body.innerHTML = `<div class="mr-empty">加载失败：${e.message}</div>`;
       }
     }
-    _mrBusy = false;
-    _mrUpdateRefreshTime();
+    } finally {
+      _mrBusy = false;
+      if (armMrBtn && mrBtn) {
+        mrBtn.disabled = false;
+        mrBtn.textContent = '刷新数据';
+      }
+      _mrUpdateRefreshTime();
+    }
   }
 
   function _mrRender(body, foot, allResults) {
@@ -4607,26 +6242,31 @@
     }
 
     let html = '';
+    /* 与 _mrLoad 一致：18:00 后或非交易日才视为「确认净值模式」；此前一律按估值时段展示状态 */
+    const useConfirmedMode = _mrUseConfirmedNav();
     top50.forEach((item, i) => {
       const rank = i + 1;
       const rCls = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
       const valS = (item.ret >= 0 ? '+' : '') + item.ret.toFixed(2) + '%';
       const valC = item.ret >= 0 ? 'var(--profit)' : 'var(--loss)';
-      const n = parseFloat(item.nav);
-      const navStr = !isNaN(n) ? n.toFixed(4) : item.nav;
       const todayStrMr = _mrTodayStr();
-      const dateHint = item.jzrq ? ` (${item.jzrq.slice(5)})` : '';
-      const isHistorical = item.confirmed === null && item.jzrq && item.jzrq !== todayStrMr;
-      const _preMarketMr = item.confirmed === false && isPreMarketNow();
-      const estBadgeMr = _preMarketMr
-        ? ' <span class="premkt-badge">盘前休市</span>'
-        : item.confirmed === false
-          ? ' <span class="est-badge">盘中估值</span>'
-          : item.confirmed === true
-            ? ' <span class="conf-badge">✓ 已出净值</span>'
-            : isHistorical
-              ? ' <span class="hist-badge">历史净值</span>'
-            : '';
+
+      const todayMD = fmtMD(todayStrMr);
+      let metaTime = '';
+      let confirmedTag = '';
+      if (item.confirmed === true) {
+        confirmedTag = ' &nbsp;<span class="conf-badge">✓ 已出净值</span>';
+      } else {
+        if (item.confirmed === false && item.gztime) {
+          metaTime = ' &nbsp;·&nbsp; <span class="fund-meta-note">估值 ' + todayMD + '</span>';
+        } else if (!useConfirmedMode && item.confirmed === null) {
+          /* fundgz 失败走 PZD 时无 gztime，仍为盘中时段，副标题与估值行对齐 */
+          metaTime = ' &nbsp;·&nbsp; <span class="fund-meta-note">估值 ' + todayMD + '</span>';
+        }
+        if (item.jzrq) {
+          confirmedTag = ' &nbsp;<span class="fund-meta-note">净值 ' + fmtMD(item.jzrq) + '</span>';
+        }
+      }
       const inHoldings = window._mrIsInHoldings && window._mrIsInHoldings(item.code);
       const inWatch = window._mrIsInWatchlist && window._mrIsInWatchlist(item.code);
       let actionHtml = '';
@@ -4640,17 +6280,20 @@
         actionHtml = `<span class="mr-action" onclick="var s=this;window._mrAddToWatch('${item.code}','${nameEsc}','${sectorEsc}');s.textContent='已在监控';s.className='mr-action muted';s.onclick=null;">添加监控</span>`;
       }
 
-      const sectorTag = item.sector ? `<span class="mr-sector">${item.sector}</span>` : '';
+      const sectorTag = item.sector
+        ? `<span class="fund-tag" style="cursor:default">${item.sector}</span>`
+        : '';
       html += `<div class="mr-row">
         <div class="mr-no ${rCls}">${rank}</div>
         <div class="mr-info">
-          <div class="mr-name">${item.name}</div>
-          <div class="mr-meta">${sectorTag}<span class="mr-code">${item.code}</span></div>
+          <div class="fund-name">
+            <span class="fund-name-text">${item.name}</span>${sectorTag}
+          </div>
+          <div class="fund-meta">${item.code}${metaTime}${confirmedTag}</div>
         </div>
         <div class="mr-right">
           <div class="mr-val" style="color:${valC}">${valS}</div>
-          <div class="mr-nav">净值 ${navStr}${dateHint}${estBadgeMr}</div>
-          <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+          <div class="mr-actions-row">
             <span class="mr-action-suggest ${_mrQuickSuggestClass(item)}" onclick="_openMrSuggest('${item.code}')">💡 买入建议</span>
             ${actionHtml}
           </div>
@@ -4681,12 +6324,14 @@
   };
 
   function _mrUpdateRefreshTime() {
-    const el = document.getElementById('mrLastRefresh');
-    if (!el) return;
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
-    el.textContent = '上次刷新：' + hh + ':' + mm;
+    const text = '上次刷新：' + hh + ':' + mm;
+    const el = document.getElementById('mrLastRefresh');
+    if (el) el.textContent = text;
+    const elS = document.getElementById('sectorLastRefresh');
+    if (elS) elS.textContent = text;
   }
 
   /* 开盘时间（9:30–15:00）每 10 分钟自动刷新 */
@@ -4702,8 +6347,10 @@
     clearInterval(_mrAutoTimer);
     _mrAutoTimer = setInterval(function () {
       const autoLabel = document.getElementById('mrAutoLabel');
+      const autoLabelS = document.getElementById('sectorAutoLabel');
       if (!_mrIsMarketOpen()) {
         if (autoLabel) autoLabel.textContent = '';
+        if (autoLabelS) autoLabelS.textContent = '';
         return;
       }
       // 开盘时段后台也刷新：勿要求当前在「基金大盘」Tab（否则切走即不拉取，点回来仍见旧缓存）
@@ -4714,20 +6361,20 @@
     // 每分钟更新倒计时提示
     setInterval(function () {
       const autoLabel = document.getElementById('mrAutoLabel');
-      if (!autoLabel) return;
-      if (_mrIsMarketOpen()) {
-        autoLabel.textContent = '开盘中·每10分钟自动刷新';
-        autoLabel.style.color = 'var(--profit)';
-      } else {
-        autoLabel.textContent = '';
-      }
+      const autoLabelS = document.getElementById('sectorAutoLabel');
+      const open = _mrIsMarketOpen();
+      const txt = open ? '开盘中·每10分钟自动刷新' : '';
+      if (autoLabel) autoLabel.textContent = txt;
+      if (autoLabelS) autoLabelS.textContent = txt;
     }, 60 * 1000);
 
     // 立即执行一次状态更新
-    const autoLabel = document.getElementById('mrAutoLabel');
-    if (autoLabel && _mrIsMarketOpen()) {
-      autoLabel.textContent = '开盘中·每10分钟自动刷新';
-      autoLabel.style.color = 'var(--profit)';
+    if (_mrIsMarketOpen()) {
+      const t = '开盘中·每10分钟自动刷新';
+      const autoLabel = document.getElementById('mrAutoLabel');
+      const autoLabelS = document.getElementById('sectorAutoLabel');
+      if (autoLabel) autoLabel.textContent = t;
+      if (autoLabelS) autoLabelS.textContent = t;
     }
   }
 
@@ -5371,17 +7018,6 @@ ${holdDetail}<br><br>
         const fCls = fr >= 0 ? 'profit' : 'loss';
         const fStr = (fr >= 0 ? '+' : '') + fr.toFixed(2) + '%';
         const navStr = (f.nav != null && !isNaN(parseFloat(f.nav))) ? parseFloat(f.nav).toFixed(4) : '--';
-        const isHistSec = f.confirmed === null && f.jzrq && f.jzrq !== _mrTodayStr();
-        const _preMarketSec = f.confirmed === false && isPreMarketNow();
-        const estBadgeSec = _preMarketSec
-          ? ' <span class="premkt-badge">盘前休市</span>'
-          : f.confirmed === false
-            ? ' <span class="est-badge">盘中估值</span>'
-            : f.confirmed === true
-              ? ' <span class="conf-badge">✓ 已出净值</span>'
-              : isHistSec
-                ? ' <span class="hist-badge">历史净值</span>'
-                : '';
         const nameEsc = (f.name || f.code || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         const inHoldings = window._mrIsInHoldings && window._mrIsInHoldings(f.code);
         const inWatch = window._mrIsInWatchlist && window._mrIsInWatchlist(f.code);
@@ -5393,12 +7029,12 @@ ${holdDetail}<br><br>
         } else {
           const nameEscAttr = (f.name || f.code || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;');
           const tagEscAttr = (s.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;');
-          actionHtml = '<span class="sector-fund-action" style="color:var(--accent);cursor:pointer;" onclick="event.stopPropagation();var s=this;window._mrAddToWatch(\'' + (f.code || '') + '\',\'' + nameEscAttr + '\',\'' + tagEscAttr + '\');s.textContent=\'已在监控\';s.className=\'sector-fund-action muted\';s.onclick=null;">添加监控</span>';
+          actionHtml = '<span class="sector-fund-action" onclick="event.stopPropagation();var s=this;window._mrAddToWatch(\'' + (f.code || '') + '\',\'' + nameEscAttr + '\',\'' + tagEscAttr + '\');s.textContent=\'已在监控\';s.className=\'sector-fund-action muted\';s.onclick=null;">添加监控</span>';
         }
         const suggestBtn = '<span class="sector-fund-suggest ' + _mrQuickSuggestClass(f) + '" onclick="event.stopPropagation();_openMrSuggest(\'' + (f.code || '') + '\')">💡 建议</span>';
         fundRows += '<div class="sector-fund-row">' +
           '<span class="sector-fund-name" title="' + nameEsc + '">' + nameEsc + ' <span class="sector-fund-code">' + (f.code || '') + '</span></span>' +
-          '<span class="sector-fund-nav">' + navStr + estBadgeSec + '</span>' +
+          '<span class="sector-fund-nav">' + navStr + '</span>' +
           suggestBtn +
           actionHtml +
           '<span class="sector-fund-ret ' + fCls + '">' + fStr + '</span>' +
@@ -5418,6 +7054,7 @@ ${holdDetail}<br><br>
     const now = new Date();
     if (foot) foot.textContent = '共 ' + sectorList.length + ' 个板块，按涨跌幅降序　更新于 ' +
       now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    _mrUpdateRefreshTime();
   }
 
   window._toggleSector = function (sectorName) {
@@ -5444,6 +7081,7 @@ ${holdDetail}<br><br>
 (function () {
   const LS_KEY    = 'deepseek_api_key';
   const LS_HIST   = 'ai_chat_history';
+  const LS_FAB_POS = 'ai_fab_pos_v1';
   const API_URL   = 'https://api.deepseek.com/v1/chat/completions';
   const MODEL     = 'deepseek-chat';
   const MAX_HIST  = 20; // 最多保留最近 N 条消息（控制 token 用量）
@@ -5452,12 +7090,182 @@ ${holdDetail}<br><br>
   let aiStreaming = false;
   let aiHistory  = [];   // [{role:'user'|'assistant', content:''}]
 
+  const AI_FAB_W = 40;
+  const AI_FAB_H = 40;
+
+  function _aiClampFab(left, top) {
+    const maxL = Math.max(0, window.innerWidth - AI_FAB_W);
+    const maxT = Math.max(0, window.innerHeight - AI_FAB_H);
+    return {
+      left: Math.min(maxL, Math.max(0, left)),
+      top: Math.min(maxT, Math.max(0, top))
+    };
+  }
+
+  function _aiApplyFabPos(left, top) {
+    const fab = document.getElementById('aiFab');
+    if (!fab) return { left: 0, top: 0 };
+    const c = _aiClampFab(left, top);
+    fab.style.left = c.left + 'px';
+    fab.style.top = c.top + 'px';
+    fab.style.right = 'auto';
+    fab.style.bottom = 'auto';
+    return c;
+  }
+
+  /** 首次/无缓存：顶栏+Tab 下方偏左（与主内容区对齐） */
+  function _aiDefaultFabPos() {
+    const st = document.getElementById('sticky-top');
+    const gap = 8;
+    const padL = 16;
+    if (st) {
+      const r = st.getBoundingClientRect();
+      if (r.bottom > 32 && r.width > 0) {
+        return _aiApplyFabPos(Math.round(r.left + gap), Math.round(r.bottom + gap));
+      }
+    }
+    return _aiApplyFabPos(padL, 100);
+  }
+
+  /** 主界面从隐藏变为显示后调用：无自定义位置时按顶栏重新落点 */
+  window._aiRepositionFabForLayout = function () {
+    try {
+      if (localStorage.getItem(LS_FAB_POS)) return;
+    } catch (_) {}
+    _aiDefaultFabPos();
+    const box = document.getElementById('aiChatBox');
+    if (box && box.classList.contains('open')) window._aiPositionChatNearFab();
+  };
+
+  function _aiLoadFabPos() {
+    try {
+      const j = JSON.parse(localStorage.getItem(LS_FAB_POS) || '');
+      if (j && typeof j.left === 'number' && typeof j.top === 'number') {
+        return _aiApplyFabPos(j.left, j.top);
+      }
+    } catch (_) {}
+    return _aiDefaultFabPos();
+  }
+
+  function _aiSaveFabPos() {
+    const fab = document.getElementById('aiFab');
+    if (!fab) return;
+    const left = parseFloat(fab.style.left) || 0;
+    const top = parseFloat(fab.style.top) || 0;
+    localStorage.setItem(LS_FAB_POS, JSON.stringify({ left, top }));
+  }
+
+  /** 对话窗贴在机器人按钮旁（随拖动更新） */
+  window._aiPositionChatNearFab = function () {
+    const fab = document.getElementById('aiFab');
+    const box = document.getElementById('aiChatBox');
+    if (!fab || !box) return;
+    const r = fab.getBoundingClientRect();
+    const gap = 12;
+    const margin = 16;
+    const bw = Math.min(380, window.innerWidth - margin * 2);
+    const bh = Math.min(560, window.innerHeight - margin * 2);
+    let left = r.right - bw;
+    let top = r.top - gap - bh;
+    if (top < margin) {
+      top = r.bottom + gap;
+    }
+    if (top + bh > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - bh - margin);
+    }
+    if (left < margin) left = margin;
+    if (left + bw > window.innerWidth - margin) left = window.innerWidth - bw - margin;
+    box.style.width = bw + 'px';
+    const maxH = window.innerHeight - margin * 2;
+    box.style.maxHeight = maxH + 'px';
+    box.style.height = Math.min(560, maxH) + 'px';
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+    box.style.right = 'auto';
+    box.style.bottom = 'auto';
+  };
+
+  (function _aiFabDragInit() {
+    const fab = document.getElementById('aiFab');
+    const box = document.getElementById('aiChatBox');
+    if (!fab) return;
+    _aiLoadFabPos();
+
+    let dragging = false;
+    let ptrId = null;
+    let startX = 0, startY = 0, originL = 0, originT = 0;
+    let moved = false;
+    let suppressClick = false;
+
+    fab.addEventListener('pointerdown', function (e) {
+      if (fab.disabled) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      dragging = true;
+      moved = false;
+      ptrId = e.pointerId;
+      fab.setPointerCapture(e.pointerId);
+      startX = e.clientX;
+      startY = e.clientY;
+      originL = fab.offsetLeft;
+      originT = fab.offsetTop;
+      fab.classList.add('ai-fab--dragging');
+    });
+
+    fab.addEventListener('pointermove', function (e) {
+      if (!dragging || e.pointerId !== ptrId) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      _aiApplyFabPos(originL + dx, originT + dy);
+      if (box && box.classList.contains('open')) window._aiPositionChatNearFab();
+    });
+
+    function endDrag(e) {
+      if (!dragging) return;
+      if (e && e.pointerId != null && ptrId != null && e.pointerId !== ptrId) return;
+      const capId = ptrId;
+      dragging = false;
+      ptrId = null;
+      try {
+        if (capId != null && fab.hasPointerCapture(capId)) fab.releasePointerCapture(capId);
+      } catch (_) {}
+      fab.classList.remove('ai-fab--dragging');
+      if (moved) {
+        suppressClick = true;
+        _aiSaveFabPos();
+      }
+      if (box && box.classList.contains('open')) window._aiPositionChatNearFab();
+    }
+
+    fab.addEventListener('pointerup', endDrag);
+    fab.addEventListener('pointercancel', endDrag);
+
+    fab.addEventListener('click', function (e) {
+      if (suppressClick) {
+        suppressClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      window._aiToggle();
+    });
+
+    window.addEventListener('resize', function () {
+      const curL = parseFloat(fab.style.left);
+      const curT = parseFloat(fab.style.top);
+      if (!isNaN(curL) && !isNaN(curT)) _aiApplyFabPos(curL, curT);
+      else _aiLoadFabPos();
+      if (box && box.classList.contains('open')) window._aiPositionChatNearFab();
+    });
+  })();
+
   /* ─── 打开 / 关闭 ─── */
   window._aiToggle = function () {
     aiOpen = !aiOpen;
     const box = document.getElementById('aiChatBox');
     box.classList.toggle('open', aiOpen);
     if (aiOpen) {
+      window._aiPositionChatNearFab();
       document.getElementById('aiFabBadge').classList.remove('show');
       _aiRenderMessages();
       setTimeout(() => {
